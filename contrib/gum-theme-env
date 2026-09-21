@@ -5,7 +5,7 @@
 # Omarchy loads the theme's gum_env.lua into the compositor environment once,
 # at login, and omarchy-theme-set does not refresh it. Every terminal and app
 # launched afterwards through uwsm inherits the login-time theme's GUM_*
-# colors, so gum prompts (omarchy update, omarchy-transcribe-install, ...)
+# colors, so gum prompts (omarchy update, omarchy plugin remove, ...)
 # render in the old theme until the next login.
 #
 # This hook re-exports the current theme's values (the same thing Omarchy's

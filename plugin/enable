@@ -7,12 +7,12 @@
 # Usage: plugin/enable [plugin-dir]   (defaults to this script's parent)
 #
 # Wires the checkout into the user's home:
-#   ~/.local/bin/omarchy-transcribe*               -> bin/ (symlinks)
+#   ~/.local/bin/omarchy-transcribe                -> bin/omarchy-transcribe
 #   ~/.local/share/nautilus-python/extensions/...  -> nautilus/ (symlink)
 #   Transcribe row in the Omarchy menu
 # keeps a copy of plugin/disable outside the checkout (see Service.qml), and,
-# the first time only, opens a floating terminal that installs whisper-cpp
-# (sudo), the GPU backend, and the default model.
+# the first time only, opens a floating terminal running plugin/setup, which
+# installs whisper-cpp (sudo), the GPU backend, and the default model.
 
 set -euo pipefail
 
@@ -30,18 +30,15 @@ echo "[$(date -Is)] enable: $PLUGIN_DIR"
 # The disable hook must survive `omarchy plugin remove` deleting the checkout.
 install -m 755 "$PLUGIN_DIR/plugin/disable" "$STATE_DIR/plugin-disable"
 
-# The pacman package owns /usr/bin and the system extension dir; a user-level
-# copy on top would shadow nothing and duplicate the Nautilus entry.
-if pacman -Q omarchy-transcribe &>/dev/null; then
-  echo "omarchy-transcribe pacman package is installed; plugin adds nothing on top"
-  exit 0
-fi
-
 mkdir -p "$BIN_DIR" "$EXT_DIR"
-for f in omarchy-transcribe omarchy-transcribe-install omarchy-transcribe-remove omarchy-transcribe-menu; do
-  ln -sfn "$PLUGIN_DIR/bin/$f" "$BIN_DIR/$f"
-done
+ln -sfn "$PLUGIN_DIR/bin/omarchy-transcribe" "$BIN_DIR/omarchy-transcribe"
 ln -sfn "$PLUGIN_DIR/nautilus/omarchy-transcribe.py" "$EXT_DIR/omarchy-transcribe.py"
+
+# Older versions linked the helpers too; they run by path now.
+for f in omarchy-transcribe-install omarchy-transcribe-remove omarchy-transcribe-menu; do
+  link="$BIN_DIR/$f"
+  [[ -L $link && $(readlink -- "$link") == "$PLUGIN_DIR/"* ]] && rm -f "$link"
+done
 
 PATH="$BIN_DIR:$PATH"
 
@@ -68,5 +65,5 @@ if [[ ! -f $SETUP_MARKER ]] || ! omarchy-cmd-present whisper-cli; then
   exit 0
 fi
 
-omarchy-transcribe-menu add
+"$PLUGIN_DIR/bin/omarchy-transcribe-menu" add
 echo "enabled quietly"

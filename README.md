@@ -10,66 +10,40 @@ Transcription runs locally with [whisper.cpp](https://github.com/ggerganov/whisp
 
 ## Install
 
-```bash
-git clone https://github.com/mihap/omarchy-transcribe
-cd omarchy-transcribe
-makepkg -si            # builds the package from the committed checkout and installs it
-omarchy-transcribe-install
-```
-
-Rebuilding after local changes: commit them, bump `pkgver` in the PKGBUILD
-(or use `makepkg -sif`, since makepkg reinstalls an existing package file of
-the same version rather than rebuilding it).
-
-### Or: install as an Omarchy plugin
+It is an Omarchy shell plugin (`manifest.json`, id `mihap.transcribe`):
 
 ```bash
 omarchy plugin add https://github.com/mihap/omarchy-transcribe.git --enable
+# or from a local checkout, same thing:
+omarchy plugin add ~/my/omarchi-transcribe --enable
 ```
 
-The same repo doubles as an Omarchy shell plugin (`manifest.json`, id
-`mihap.transcribe`). It has no bar widget or panel; its only job is to run
-hooks when the shell enables or disables it:
+The plugin has no bar widget or panel; its only job is to run hooks when the
+shell enables or disables it.
 
-- **Enable** links `omarchy-transcribe*` into `~/.local/bin`, links the
-  Nautilus extension into `~/.local/share/nautilus-python/extensions`, adds
-  the menu row, and, the first time, opens a floating terminal that installs
-  `whisper-cpp` (sudo), the GPU backend, and the default model.
-- **Disable** (`omarchy plugin disable mihap.transcribe`, or Setup > Plugins)
-  unlinks all of that and removes the menu row, and keeps the expensive parts:
-  downloaded models and the packages. Enable brings it back without a
-  download.
-- **Remove** (`omarchy plugin remove mihap.transcribe`, or Setup > Plugins >
-  Remove Plugin) does what disable does and then opens a floating terminal
-  that purges everything the plugin brought: the models, its config and
-  state, and the packages its setup installed (`whisper-cpp`, `ggml-vulkan`),
-  which needs sudo. A package that was already on the machine before the
-  setup is not touched; the setup records what it installed.
-- `omarchy plugin update mihap.transcribe` pulls the repo; links follow it.
+**Enable** links `omarchy-transcribe` into `~/.local/bin`, links the Nautilus
+extension into `~/.local/share/nautilus-python/extensions`, and adds a
+**Transcribe** row to the Omarchy menu
+(`~/.config/omarchy/extensions/omarchy-menu.jsonc`). The first time, it also
+opens a floating terminal that, without prompting:
 
-A hook log is kept at `~/.local/state/omarchy-transcribe/plugin.log`. If the
-pacman package is installed too, the plugin hooks do nothing: the package
-owns the integration.
-
-Pick one of the two: the pacman package for a system-wide install managed by
-pacman, the plugin for a per-user install managed from the Omarchy menu.
-
-`makepkg -si` pulls in `whisper-cpp` as a dependency. The Nautilus entry
-needs `nautilus-python` (an optional dependency, present on every Omarchy
-desktop). `omarchy-transcribe-install` does the per-user part, without prompting:
-
+- installs `whisper-cpp` (sudo prompt from pacman)
 - downloads the `small` model (~500MB) into `~/.local/share/omarchy-transcribe/models/`
   unless a model is already available (see model directories below)
 - installs `ggml-vulkan` for GPU acceleration when a Vulkan driver is present
-  (sudo prompt from pacman; CPU transcription works without it)
-- adds a **Transcribe** row to the Omarchy menu (`~/.config/omarchy/extensions/omarchy-menu.jsonc`)
+  (CPU transcription works without it)
 
-Running `omarchy-transcribe` before any model exists downloads the default
-model on the spot, so the install script is a convenience, not a requirement.
+It records which of those packages it installed, so removing the plugin can
+take out exactly those and leave a `whisper-cpp` you already had alone. If the
+setup is interrupted (sudo cancelled, say), it runs again at the next shell
+start until it completes, or until you disable the plugin.
 
 Nautilus only loads extensions at startup. If Files is open, the right-click
 entry appears after `nautilus -q` (which closes open Files windows) or at
-your next login. The install script tells you but does not do it for you.
+your next login. The setup tells you but does not do it for you.
+
+`omarchy plugin update mihap.transcribe` pulls the repo; the links follow it.
+A hook log is kept at `~/.local/state/omarchy-transcribe/plugin.log`.
 
 ## Usage
 
@@ -93,6 +67,13 @@ the last-used model first so Enter repeats the previous choice. Its last row,
 **Download another model…**, opens a second picker of well-known models with
 sizes, downloads the choice, and continues with it.
 
+Multi-selecting files in Nautilus asks for the model once, then transcribes
+the files one after another in the same floating terminal.
+
+Both the menu row and the Nautilus entry run the command inside Omarchy's
+floating terminal, so whisper's progress stays visible on long files.
+Failures are also reported as a desktop notification.
+
 ## Adding models
 
 ```bash
@@ -115,18 +96,11 @@ under `ggerganov/whisper.cpp` on Hugging Face works with `--download` too.
 You can also drop a `ggml-*.bin` into `~/.local/share/omarchy-transcribe/models/`
 or into any directory listed in `MODEL_DIRS`.
 
-Multi-selecting files in Nautilus asks for the model once, then transcribes
-the files one after another in the same floating terminal.
-
-Both the menu row and the Nautilus entry run the command inside Omarchy's
-floating terminal, so whisper's progress stays visible on long files.
-Failures are also reported as a desktop notification.
-
 ## Configuration
 
-`~/.config/omarchy-transcribe/config` is a sourced shell file. The packaged
-defaults are in `/usr/share/omarchy-transcribe/config`; only put the keys you
-change in your file.
+`~/.config/omarchy-transcribe/config` is a sourced shell file. The shipped
+defaults are `default/config` in the checkout; only put the keys you change
+in your file.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -141,25 +115,33 @@ the only directory the tool downloads into and the only one it deletes.
 
 The last-used model is remembered in `~/.local/state/omarchy-transcribe/last-model`.
 
-## Uninstall
+## Disable and remove
+
+Both are in Omarchy menu > Setup > Plugins, or on the command line:
 
 ```bash
-omarchy-transcribe-remove
+omarchy plugin disable mihap.transcribe   # reversible
+omarchy plugin remove mihap.transcribe    # deletes everything it brought
 ```
 
-This runs `pacman -Rns omarchy-transcribe` via `omarchy-pkg-drop` first, so
-nothing of yours is deleted if the sudo prompt is cancelled. Packages the
-setup script installed itself (`ggml-vulkan`) are dropped in the same call.
-It then removes the menu row it added and deletes
-`~/.local/share/omarchy-transcribe`, `~/.config/omarchy-transcribe` and
-`~/.local/state/omarchy-transcribe`.
+**Disable** unlinks the command and the Nautilus extension and removes the
+menu row. The expensive parts stay: downloaded models and the packages.
+Enable brings it back without a download.
 
-What happens to `whisper-cpp` is decided by pacman, not by this tool:
+**Remove** does what disable does and then opens a floating terminal that
+purges everything the plugin brought: the models, its config and state, and
+the packages its setup installed (`whisper-cpp`, `ggml-vulkan`), which needs
+sudo. A package that was already on the machine before the setup is not
+touched. Models in `MODEL_DIRS` (for example `~/.local/share/whisper`) are
+never touched, and transcripts you made are never touched.
 
-- installed as a dependency of this package and needed by nothing else: removed
-- installed explicitly by you, or needed by another package: kept
+Remove while the plugin is **enabled**. Removing a plugin that is already
+disabled destroys no service in the shell, so no hook runs and nothing is
+purged. If you did that, the purge still runs by hand:
 
-Models in `MODEL_DIRS` (for example `~/.local/share/whisper`) are never touched.
+```bash
+bash ~/.local/state/omarchy-transcribe/plugin-disable --purge
+```
 
 ## Known Omarchy quirk: gum prompts in the old theme's colors
 
@@ -167,7 +149,7 @@ Omarchy loads a theme's gum colors into the environment at login. After
 `omarchy theme set`, Hyprland refreshes its own environment, so terminals
 opened by keybind are fine, but terminals that were already open, and
 anything launched from the Omarchy menu, keep the old colors. Omarchy's
-floating-terminal wrapper works around it by sourcing `omarchy-restart-gum`,
+floating-terminal wrapper works around it by sourcing `omarchy-restart-gum`.
 Other Omarchy commands you run from a terminal (`omarchy update`, for
 example) do not. omarchy-transcribe itself shows no gum prompts, so it is
 not affected.
@@ -188,11 +170,14 @@ For a terminal that is already open, `source omarchy-restart-gum` or
 ## Layout
 
 ```
+manifest.json                     Omarchy plugin manifest (id mihap.transcribe)
+plugin/Service.qml                runs plugin/enable on load, plugin/disable on unload
+plugin/enable                     links the command and extension, adds the menu row
+plugin/setup                      first-time setup in a floating terminal (whisper-cpp, model, GPU)
+plugin/disable                    unlink + menu row; on remove, purge in a floating terminal
 bin/omarchy-transcribe            the command
-bin/omarchy-transcribe-install    per-user setup (model, menu row, Nautilus reload)
-bin/omarchy-transcribe-remove     per-user cleanup, then package removal
+bin/omarchy-transcribe-menu       add/remove the menu row (run by the hooks)
 nautilus/omarchy-transcribe.py    Nautilus right-click entry (nautilus-python)
-default/config                    packaged defaults -> /usr/share/omarchy-transcribe/config
-PKGBUILD, omarchy-transcribe.install
+default/config                    shipped defaults
 contrib/gum-theme-env             optional theme-set hook, see above
 ```

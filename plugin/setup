@@ -1,33 +1,104 @@
 #!/bin/bash
 
 # First-time plugin setup, shown in a floating terminal by plugin/enable.
-# Installs whisper-cpp, then runs the same per-user setup the pacman package
-# uses (default model, GPU backend, menu row), then records that it is done.
+# Everything that needs sudo or deserves a progress bar happens here:
+# whisper-cpp, the GPU backend, the default model, the menu row. It records
+# which packages it installed so `omarchy plugin remove` can take exactly
+# those back out, then writes the setup-done marker. No prompts: the defaults
+# are the choice. Safe to re-run.
 
 set -euo pipefail
+shopt -s inherit_errexit
 
 PLUGIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
-PATH="$HOME/.local/bin:$PATH"
+TRANSCRIBE="$PLUGIN_DIR/bin/omarchy-transcribe"
+MENU="$PLUGIN_DIR/bin/omarchy-transcribe-menu"
+ICON="󰨖"
 
-# Claimed by plugin/enable so a second enable does not open a second setup.
-trap 'rmdir "$STATE_DIR/setup.pending" 2>/dev/null || true' EXIT
+mkdir -p "$STATE_DIR"
+
+# The pending marker is claimed by plugin/enable so a second enable does not
+# open a second setup. Without the done marker, enable tries again at the
+# next shell start; say so when that is going to happen.
+finish() {
+  local rc=$?
+  rmdir "$STATE_DIR/setup.pending" 2>/dev/null || true
+  if (( rc != 0 )); then
+    echo "" >&2
+    echo "Setup did not finish (exit $rc). It runs again at the next shell start;" >&2
+    echo "to stop that, disable the plugin: omarchy plugin disable mihap.transcribe" >&2
+  fi
+}
+trap finish EXIT
+
+# Remember what we install, so removing the plugin can take exactly that
+# with it and leave a whisper-cpp the user already had alone.
+record_installed() {
+  echo "$1" >>"$STATE_DIR/installed-packages"
+}
 
 echo "Setting up Transcribe (plugin at $PLUGIN_DIR)"
 echo ""
 
-# Remember what we install, so removing the plugin can take exactly that
-# with it and leave a whisper-cpp the user already had alone.
-mkdir -p "$STATE_DIR"
-if ! pacman -Q whisper-cpp &>/dev/null; then
-  omarchy-pkg-add whisper-cpp
-  echo whisper-cpp >>"$STATE_DIR/installed-packages"
-fi
-omarchy-transcribe-install
+# ------------------------------------------------------------------ whisper
 
-mkdir -p "$STATE_DIR"
+if pacman -Q whisper-cpp &>/dev/null; then
+  echo "whisper-cpp already installed"
+else
+  omarchy-pkg-add whisper-cpp
+  record_installed whisper-cpp
+fi
+
+# ------------------------------------------------------------------ model
+
+# The effective config (shipped defaults + user overrides) comes from the
+# command itself, so there is one loader.
+eval "$("$TRANSCRIBE" --print-config)"
+
+if [[ -n $("$TRANSCRIBE" --list-models) ]]; then
+  echo "Whisper models already available:"
+  "$TRANSCRIBE" --list-models | sed 's/^/  /'
+else
+  "$TRANSCRIBE" --download "$DEFAULT_MODEL"
+fi
+
+# ------------------------------------------------------------------ GPU
+
+# whisper-cli goes through libggml, which loads backends from /usr/lib/ggml at
+# runtime, so the Vulkan backend is a separate package. Install it wherever a
+# Vulkan driver is present; CPU transcription keeps working if this fails.
+if omarchy-hw-vulkan; then
+  if pacman -Q ggml-vulkan &>/dev/null; then
+    echo "GPU acceleration: ggml-vulkan already installed"
+  else
+    echo "Vulkan detected, installing ggml-vulkan for GPU-accelerated transcription..."
+    if omarchy-pkg-add ggml-vulkan; then
+      record_installed ggml-vulkan
+    else
+      echo "ggml-vulkan install failed; CPU transcription still works." >&2
+    fi
+  fi
+fi
+
+# ------------------------------------------------------------------ menu row
+
+"$MENU" add
+
 touch "$STATE_DIR/setup-done"
+
+# ------------------------------------------------------------------ nautilus
+
+# Nautilus loads python extensions at startup only. Quitting it would close
+# every open Files window, so that is left to the user.
+if pgrep -x nautilus >/dev/null; then
+  echo ""
+  echo "Files (Nautilus) is running. The right-click Transcribe entry appears"
+  echo "once it is restarted: run 'nautilus -q' (closes open Files windows)"
+  echo "or wait for your next login."
+fi
 
 echo ""
 echo "Disable (keeps models) or remove (deletes everything it installed) from"
 echo "Omarchy menu > Setup > Plugins."
+omarchy-notification-send -g "$ICON" "Transcribe Ready" "Right-click a video in Files, or open the Omarchy menu." -t 10000 || true

@@ -8,16 +8,16 @@ if it exists. Built the same way `omarchy-transcode` is built.
 
 | Topic | Decision |
 |---|---|
-| Distribution | pacman package (PKGBUILD in this repo, `makepkg -si`). AUR later, optional. |
-| whisper-cpp on uninstall | Not handled by hand. `depends=(whisper-cpp)`; removal runs `pacman -Rns` via `omarchy-pkg-drop`, so pacman removes whisper-cpp only if it was installed as a dependency and nothing else needs it. |
+| Distribution | Omarchy shell plugin only: `omarchy plugin add <url-or-path> --enable`. The pacman package (PKGBUILD, install/remove scripts) existed through 0.4.0 and was dropped in R6: one install path, one uninstall path. |
+| whisper-cpp on uninstall | `plugin/setup` records every package it installs in `~/.local/state/omarchy-transcribe/installed-packages`; `omarchy plugin remove` drops exactly those via `omarchy-pkg-drop`. A whisper-cpp that pre-dates the setup is never touched. |
 | Command name | `omarchy-transcribe` on PATH. The `omarchy` dispatcher only scans its own bin dir, so there is no `omarchy transcribe` route. Header comments (`# omarchy:*`) kept for consistency. |
-| Right-click | nautilus-python `MenuProvider` at `/usr/share/nautilus-python/extensions/omarchy-transcribe.py` (system path, loaded by nautilus-python natively; no `/etc/skel` copying). |
+| Right-click | nautilus-python `MenuProvider`, linked by the enable hook into `~/.local/share/nautilus-python/extensions/omarchy-transcribe.py`. |
 | Launch wrapper | `omarchy-launch-floating-terminal-with-presentation`, same as transcode. |
-| Menu row | `trigger.transcribe` appended to `~/.config/omarchy/extensions/omarchy-menu.jsonc` by the install script, with `"when":"omarchy-cmd-present omarchy-transcribe"` so it hides itself after removal. |
+| Menu row | `trigger.transcribe` appended to `~/.config/omarchy/extensions/omarchy-menu.jsonc` by `bin/omarchy-transcribe-menu add` (run by the hooks), marker-guarded so `remove` takes out exactly those two lines; `"when":"omarchy-cmd-present omarchy-transcribe"` hides it whenever the command is gone. |
 | Model dir (owned) | `~/.local/share/omarchy-transcribe/models/`. Deleted on remove (models are re-downloadable). |
 | Model dirs (scanned) | Config key `MODEL_DIRS`, default includes `~/.local/share/whisper`. Scanned for the picker, never deleted. |
 | Model download | `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-<name>.bin`. Install downloads `small`. |
-| Config | `~/.config/omarchy-transcribe/config`, sourced shell file. Defaults shipped at `/usr/share/omarchy-transcribe/config`. Absent user file = defaults. |
+| Config | `~/.config/omarchy-transcribe/config`, sourced shell file. Defaults are `default/config` in the checkout, found by resolving the `~/.local/bin` symlink. Absent user file = defaults. |
 | State | Last-used model in `~/.local/state/omarchy-transcribe/last-model`, used to preselect in the picker. |
 | Output | `whisper-cli -m <model> -f <input> -osrt -of <dir>/<stem>` → `<dir>/<stem>.srt`. Language default `auto`. |
 | Inputs | video/* and audio/* (audio is free with whisper). |
@@ -26,14 +26,13 @@ if it exists. Built the same way `omarchy-transcode` is built.
 ## Layout
 
 ```
-PKGBUILD
+manifest.json
+plugin/Service.qml  plugin/enable  plugin/setup  plugin/disable
 bin/omarchy-transcribe
-bin/omarchy-transcribe-install
-bin/omarchy-transcribe-remove
+bin/omarchy-transcribe-menu
 nautilus/omarchy-transcribe.py
 default/config
-README.md
-SCOPE.md
+README.md  SCOPE.md  QA.md
 ```
 
 ## Tasks
@@ -49,6 +48,7 @@ Mark a task `DONE` and record the commit sha when it is finished and verified.
 | T5 | `bin/omarchy-transcribe-remove`: remove menu row, owned model dir, config, state; `nautilus -q`; `omarchy-pkg-drop omarchy-transcribe` last. Prints what was left alone (scanned dirs). | DONE | 7c5b624 |
 | T6 | `PKGBUILD`: `depends=(whisper-cpp gum)`, `optdepends=(ggml-vulkan)`; installs bin/, nautilus extension, default config; `.install` post_install message pointing at `omarchy-transcribe-install`. `makepkg -f` builds; `namcap` not run (not installed, needs sudo to add). `makepkg -si` pending in T7. | DONE | 1af72de |
 | R5 | Omarchy plugin mode: `manifest.json` (id `mihap.transcribe`, kind `service`) + `plugin/Service.qml` whose only job is to run `plugin/enable` on load and `plugin/disable` on unload via `Quickshell.execDetached`. Enable links bin/ and the Nautilus extension into `~/.local`, adds the menu row, and on first run opens a floating terminal (`plugin/setup`: `omarchy-pkg-add whisper-cpp` + `omarchy-transcribe-install`, then a `setup-done` marker). Disable checks `shell.json` `plugins[]` so shell restarts are no-ops, then unlinks and removes the row; user data kept. Both hooks no-op when the pacman package is installed. Menu-row logic factored into `bin/omarchy-transcribe-menu add\|remove`, shared by install, remove, and the hooks. Version 0.4.0. Verified in a fake HOME with stubs, then live against the real shell from the local path: add `--enable --yes`, list, disable, enable, remove `--yes`, add again, update. Live run found that the shell destroys the service before writing `shell.json`, so the disable hook now polls for up to 4s (1300d27). With the pacman package installed the hooks no-op, as designed; full plugin-mode setup needs the package removed first. Menu-driven remove is the user's to try. Second live finding: on remove the checkout can be gone before the hook starts, so enable stores a self-contained copy of the disable hook under `~/.local/state` and Service.qml runs that (766ae78). Third: double service creation on add opened two setup terminals; pending marker (f1d1369). Live full plugin-mode add and remove verified clean. Mike: remove left too much behind (models, state, packages). Now: disable = reversible (unlink + menu row, keep models/packages); remove = disable + floating-terminal purge of models, config, state, and the packages setup recorded in `installed-packages` (whisper-cpp/ggml-vulkan only if setup installed them). The pacman path drops recorded packages too. | DONE | 9c4d7c8, 1300d27, 766ae78, f1d1369, see git log |
+| R6 | Plugin is the only install path. Mike: "there should be only one valid way to install". Deleted `PKGBUILD`, `omarchy-transcribe.install`, `bin/omarchy-transcribe-install` (folded into `plugin/setup`, its only caller), `bin/omarchy-transcribe-remove` (its job is `omarchy plugin remove`; its pacman-first ordering had also lost the menu-row removal in 9c4d7c8 because the helper was already deleted when it was called). `bin/omarchy-transcribe` reads shipped defaults from `default/config` in the checkout via `readlink -f` of its own symlink. Hooks lose the "pacman package installed, no-op" guards. Enable links only `omarchy-transcribe` into `~/.local/bin`; the menu helper runs by path, stale helper links from earlier versions are cleaned up. `plugin/setup` prints a retry/disable hint when it exits non-zero. The disable-hook copy under `~/.local/state` is kept on disable, as the manual purge path for a plugin removed while disabled (no service is destroyed then, so no hook runs); README documents it. Version 0.5.0. Still open from the same review: `--pick-model` leaks download chatter to stdout on a modelless machine; installed models with an empty note (`base`, `base.en`) reappear in the download picker because tab is IFS whitespace; `keepLoaded: false` cycles the hooks on every plugin rescan. | DONE | see git log |
 | R4 | Model discovery: `--list-available` prints 14 well-known ggml models with sizes (verified against Hugging Face content-length), notes, and an `installed` marker; the picker gains a last row "Download another model…" that opens a second picker of not-yet-installed models, downloads the choice (progress to stderr), and continues with it. README gains an "Adding models" section. Version 0.3.0. | DONE | 949ac0a |
 | R3 | No prompts: `omarchy-transcribe-install` downloads `DEFAULT_MODEL` when no model exists and installs `ggml-vulkan` whenever `omarchy-hw-vulkan` is true; the command's first-run path downloads the default model instead of asking. gum no longer used, dropped from `depends`; the R2 sourcing lines removed with it. | DONE | b4b1237 |
 | R2 | QA finding: gum prompts in `omarchy-transcribe-install` and the first-run download prompt used the login-time theme colors (Tokyo Night on a Lupine desktop). Both now `source omarchy-restart-gum` first, as Omarchy's floating-terminal wrapper does. Verified under a pty with a gum stub: prompt foreground `#3264eb`, selected background `#d0d0d0` (Lupine). | DONE | bb1159f |
@@ -64,17 +64,19 @@ Mark a task `DONE` and record the commit sha when it is finished and verified.
 - T4/T5: run against a throwaway `$HOME` (with `XDG_*_HOME` unset) with stubbed `nautilus` and `omarchy-pkg-drop`: menu row inserted once, idempotent on re-run, parses as JSON after comment/trailing-comma stripping; remove restores the menu file byte-for-byte and deletes the three owned dirs.
 - T6: `makepkg -f` produces `omarchy-transcribe-0.1.0-1-any.pkg.tar.zst` with the 7 expected files and deps `bash omarchy whisper-cpp nautilus-python gum curl file`, optdep `ggml-vulkan`.
 
-## T7 runbook (needs a terminal for sudo)
+## Runbook (needs a terminal for sudo)
 
 The full step-by-step checklist with expected results is in `QA.md`. Short version:
 
 ```bash
-cd ~/my/omarchi-transcribe
-makepkg -si                   # builds from the committed HEAD; or: sudo pacman -U omarchy-transcribe-0.1.0-1-any.pkg.tar.zst
-omarchy-transcribe-install    # models already in ~/.local/share/whisper are found, so no download
-nautilus -q                   # so Files loads the new extension (closes open Files windows)
+cd ~/my/omarchi-transcribe && git status              # clean; plugin add clones HEAD
+omarchy plugin add "$PWD" --enable --yes             # one floating setup terminal: whisper-cpp, model, GPU, menu row
+nautilus -q                                          # so Files loads the extension (closes open Files windows)
 # 1. Files: right-click a video → Transcribe → pick small → <name>.srt appears; run again → overwritten; multi-select two files → one model prompt
 # 2. Super+Alt+Space menu → Transcribe row present
-# 3. GPU: after accepting ggml-vulkan, `whisper-cli -m ~/.local/share/whisper/ggml-small.bin -f /tmp/clip.mp4` should list a Vulkan device in its startup output
-omarchy-transcribe-remove     # expect: ~/.local/share/whisper untouched, whisper-cpp kept (explicitly installed)
+# 3. GPU: `whisper-cli -m ~/.local/share/omarchy-transcribe/models/ggml-small.bin -f /tmp/clip.mp4` should list a Vulkan device in its startup output
+omarchy plugin disable mihap.transcribe && omarchy plugin enable mihap.transcribe   # links and row go and come back, no download
+omarchy plugin remove mihap.transcribe --yes         # second floating terminal purges models, config, state, recorded packages
 ```
+
+The earlier pacman-package runbook applied through 0.4.0; the history in `QA-RESULTS-2026-09-21.md` refers to it.

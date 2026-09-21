@@ -1,8 +1,1 @@
-# makepkg output
-/pkg/
-/src/
-/omarchy-transcribe/
-*.src.tar.gz
-*.pkg.tar.zst
-*.pkg.tar.zst.sig
 __pycache__/

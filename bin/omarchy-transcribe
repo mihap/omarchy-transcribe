@@ -13,7 +13,7 @@ shopt -s inherit_errexit
 
 # ------------------------------------------------------------------ defaults
 #
-# Overridable from /usr/share/omarchy-transcribe/config (shipped) and then
+# Overridable from default/config in the plugin checkout (shipped) and then
 # ~/.config/omarchy-transcribe/config (user). Both are plain sourced shell.
 
 MODEL_DIRS="$HOME/.local/share/whisper"
@@ -22,7 +22,10 @@ LANGUAGE="auto"
 THREADS="$(nproc)"
 WHISPER_ARGS=""
 
-SHIPPED_CONFIG="/usr/share/omarchy-transcribe/config"
+# ~/.local/bin/omarchy-transcribe is a symlink into the checkout; resolve it
+# so the shipped defaults are found next to the real file.
+PLUGIN_DIR="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/.." && pwd)"
+SHIPPED_CONFIG="$PLUGIN_DIR/default/config"
 USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe/config"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
 OWNED_MODEL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-transcribe/models"

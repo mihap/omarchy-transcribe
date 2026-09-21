@@ -15,6 +15,11 @@
 #                                               state, and the packages that
 #                                               setup installed (sudo)
 #
+# Removing a plugin that is already disabled destroys no service, so no hook
+# runs and nothing is purged. The copy under ~/.local/state is kept on disable
+# for exactly that case: `bash ~/.local/state/omarchy-transcribe/plugin-disable
+# --purge` does by hand what remove-while-enabled does on its own.
+#
 # Self-contained on purpose: on remove the checkout is already gone when this
 # runs (Service.qml runs the copy plugin/enable stored under ~/.local/state),
 # so nothing here may read a file from the checkout. The plugin dir is only
@@ -103,15 +108,8 @@ if still_enabled; then
   exit 0
 fi
 
-# Mirror of the enable guard: with the pacman package installed the plugin
-# never wired anything, and the menu row belongs to the package.
-if pacman -Q omarchy-transcribe &>/dev/null; then
-  echo "omarchy-transcribe pacman package is installed; nothing of the plugin's to undo"
-  exit 0
-fi
-
 # Only remove links that point into the checkout (dangling or not); a
-# pacman-installed copy or a hand-made link is not ours.
+# hand-made link is not ours. Older versions linked the helpers too.
 for f in omarchy-transcribe omarchy-transcribe-install omarchy-transcribe-remove omarchy-transcribe-menu; do
   link="$BIN_DIR/$f"
   [[ -L $link && $(readlink -- "$link") == "$PLUGIN_DIR/"* ]] && rm -f "$link"
@@ -135,9 +133,8 @@ fi
 # it disables the plugin; give that a moment, then look.
 sleep 1
 if [[ -d $PLUGIN_DIR ]]; then
-  # A disable: reversible, so the expensive parts stay. The hook copy is
-  # re-installed by the next enable.
-  rm -f "$STATE_DIR/plugin-disable"
+  # A disable: reversible, so the expensive parts stay. The hook copy stays
+  # too, as the manual purge path for a plugin removed while disabled.
   omarchy-notification-send -g "$ICON" "Transcribe disabled" "Enable it again from Setup > Plugins. Models kept; remove the plugin to delete everything." -t 8000 || true
   echo "disabled (checkout still present); models and packages kept"
   exit 0
