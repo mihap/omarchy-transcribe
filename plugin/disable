@@ -23,9 +23,20 @@ mkdir -p "$STATE_DIR"
 exec >>"$LOG" 2>&1
 echo "[$(date -Is)] disable: $PLUGIN_DIR"
 
-if [[ -f $SHELL_JSON ]] && jq -e --arg id "$PLUGIN_ID" \
-  '(.plugins // []) | any(.[]; (.id // .) == $id)' "$SHELL_JSON" >/dev/null 2>&1; then
-  echo "still enabled in shell.json: shell restart, leaving everything in place"
+still_enabled() {
+  [[ -f $SHELL_JSON ]] && jq -e --arg id "$PLUGIN_ID" \
+    '(.plugins // []) | any(.[]; (.id // .) == $id)' "$SHELL_JSON" >/dev/null 2>&1
+}
+
+# The shell destroys the service before it has finished writing shell.json,
+# so a single look races the write and mistakes a real disable for a restart.
+# Give the file a few seconds to change; a restart never changes it.
+for (( i = 0; i < 40; i++ )); do
+  still_enabled || break
+  sleep 0.1
+done
+if still_enabled; then
+  echo "still enabled in shell.json after 4s: shell restart, leaving everything in place"
   exit 0
 fi
 
