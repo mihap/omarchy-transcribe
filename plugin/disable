@@ -50,7 +50,7 @@ purge() {
   fi
 
   if (( ${#pkgs[@]} > 0 )); then
-    echo "Cleaning up unused dependencies: ${pkgs[*]}"
+    echo "Cleaning up unused dependencies..."
     if ! omarchy-pkg-drop "${pkgs[@]}"; then
       left+=("${pkgs[*]} still installed (cancelled or failed; run: sudo pacman -Rns ${pkgs[*]})")
     fi
