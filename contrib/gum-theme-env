@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Omarchy theme-set hook: push the new theme's gum colors into the session.
+#
+# Omarchy loads the theme's gum_env.lua into the compositor environment once,
+# at login, and omarchy-theme-set does not refresh it. Every terminal and app
+# launched afterwards through uwsm inherits the login-time theme's GUM_*
+# colors, so gum prompts (omarchy update, omarchy-transcribe-install, ...)
+# render in the old theme until the next login.
+#
+# This hook re-exports the current theme's values (the same thing Omarchy's
+# floating-terminal wrapper does via omarchy-restart-gum) and imports them
+# into the systemd user manager and the D-Bus activation environment, which
+# is where uwsm-launched processes get their environment from.
+#
+# Install:  omarchy hook install theme-set contrib/gum-theme-env
+# Runs with the theme slug in $1 after each `omarchy theme set`.
+
+set -euo pipefail
+
+# shellcheck source=/dev/null
+source omarchy-restart-gum
+
+mapfile -t keys < <(compgen -e | grep '^GUM_' || true)
+(( ${#keys[@]} > 0 )) || exit 0
+
+systemctl --user import-environment "${keys[@]}"
+dbus-update-activation-environment --systemd "${keys[@]}" 2>/dev/null || true

@@ -94,6 +94,30 @@ What happens to `whisper-cpp` is decided by pacman, not by this tool:
 
 Models in `MODEL_DIRS` (for example `~/.local/share/whisper`) are never touched.
 
+## Known Omarchy quirk: gum prompts in the old theme's colors
+
+Omarchy loads a theme's gum colors into the environment at login. After
+`omarchy theme set`, Hyprland refreshes its own environment, so terminals
+opened by keybind are fine, but terminals that were already open, and
+anything launched from the Omarchy menu, keep the old colors. Omarchy's
+floating-terminal wrapper works around it by sourcing `omarchy-restart-gum`,
+and so do `omarchy-transcribe` and `omarchy-transcribe-install`. Other
+Omarchy commands you run from a terminal (`omarchy update`, for example) do
+not.
+
+Two user-side fixes, both optional:
+
+```bash
+# every new shell follows the current theme; add after the rc source in ~/.bashrc
+command -v omarchy-restart-gum >/dev/null && source omarchy-restart-gum
+
+# services and D-Bus-activated apps launched after a theme switch get the new colors
+omarchy hook install theme-set contrib/gum-theme-env
+```
+
+For a terminal that is already open, `source omarchy-restart-gum` or
+`exec bash` picks up the current theme.
+
 ## Layout
 
 ```
@@ -103,4 +127,5 @@ bin/omarchy-transcribe-remove     per-user cleanup, then package removal
 nautilus/omarchy-transcribe.py    Nautilus right-click entry (nautilus-python)
 default/config                    packaged defaults -> /usr/share/omarchy-transcribe/config
 PKGBUILD, omarchy-transcribe.install
+contrib/gum-theme-env             optional theme-set hook, see above
 ```
