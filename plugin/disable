@@ -1,10 +1,16 @@
 #!/bin/bash
 
-# Plugin disable hook. Run by plugin/Service.qml when the shell destroys the
-# service, which happens on `omarchy plugin disable`, on `omarchy plugin
-# remove`, and when the shell itself restarts. Only the first two are a real
-# disable: shell.json still lists the plugin as enabled during a restart, so
-# nothing is touched then.
+# Plugin disable hook. Run when the shell destroys the service, which happens
+# on `omarchy plugin disable`, on `omarchy plugin remove`, and when the shell
+# itself restarts. Only the first two are a real disable: shell.json still
+# lists the plugin as enabled during a restart, so nothing is touched then.
+#
+# Usage: plugin/disable [plugin-dir]
+#
+# Self-contained on purpose: on remove the checkout is already gone when this
+# runs (Service.qml runs the copy plugin/enable stored under ~/.local/state),
+# so nothing here may read a file from the checkout. The plugin dir is only
+# used as a string, to recognise the links that point into it.
 #
 # Undoes what plugin/enable did. Downloaded models, config, and state are
 # user data and stay; whisper-cpp stays too (it is a regular pacman package).
@@ -12,23 +18,17 @@
 set -euo pipefail
 
 PLUGIN_ID="mihap.transcribe"
-PLUGIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+PLUGIN_DIR="${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || echo /nonexistent)}"
 BIN_DIR="$HOME/.local/bin"
 EXT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nautilus-python/extensions"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
 SHELL_JSON="$HOME/.config/omarchy/shell.json"
+MENU_FILE="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 LOG="$STATE_DIR/plugin.log"
 
 mkdir -p "$STATE_DIR"
 exec >>"$LOG" 2>&1
 echo "[$(date -Is)] disable: $PLUGIN_DIR"
-
-# On `omarchy plugin remove` the checkout is deleted while this hook is still
-# waiting below, so take a copy of the helper now. (bash keeps reading this
-# script from its open file descriptor even after the unlink.)
-menu_helper=$(mktemp)
-trap 'rm -f "$menu_helper"' EXIT
-cp -- "$PLUGIN_DIR/bin/omarchy-transcribe-menu" "$menu_helper"
 
 still_enabled() {
   [[ -f $SHELL_JSON ]] && jq -e --arg id "$PLUGIN_ID" \
@@ -54,8 +54,8 @@ if pacman -Q omarchy-transcribe &>/dev/null; then
   exit 0
 fi
 
-# Only remove links that point into this checkout; a pacman-installed copy or
-# a hand-made link is not ours.
+# Only remove links that point into the checkout (dangling or not); a
+# pacman-installed copy or a hand-made link is not ours.
 for f in omarchy-transcribe omarchy-transcribe-install omarchy-transcribe-remove omarchy-transcribe-menu; do
   link="$BIN_DIR/$f"
   [[ -L $link && $(readlink -- "$link") == "$PLUGIN_DIR/"* ]] && rm -f "$link"
@@ -63,7 +63,17 @@ done
 ext="$EXT_DIR/omarchy-transcribe.py"
 [[ -L $ext && $(readlink -- "$ext") == "$PLUGIN_DIR/"* ]] && rm -f "$ext"
 
-bash "$menu_helper" remove
+# Menu row: same marker-guarded removal as bin/omarchy-transcribe-menu,
+# inlined because that file may no longer exist.
+if [[ -f $MENU_FILE ]] && grep -qF '// omarchy-transcribe (managed by' "$MENU_FILE"; then
+  awk '
+    skip { skip = 0; next }
+    index($0, "// omarchy-transcribe (managed by") { skip = 1; next }
+    { print }
+  ' "$MENU_FILE" >"$MENU_FILE.tmp"
+  mv -f "$MENU_FILE.tmp" "$MENU_FILE"
+  echo "Removed Transcribe from the Omarchy menu"
+fi
 
 omarchy-notification-send -g 󰨖 "Transcribe disabled" "Command, Files entry and menu row removed. Models kept in ~/.local/share/omarchy-transcribe." -t 8000 || true
 echo "disabled"
