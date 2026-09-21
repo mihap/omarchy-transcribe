@@ -41,7 +41,7 @@ makepkg -si
 - [ ] `omarchy-transcribe --help` prints usage, exit 0.
 - [ ] `omarchy-transcribe --print-config` shows `MODEL_DIRS=/home/<you>/.local/share/whisper`, `DEFAULT_MODEL=small`, `LANGUAGE=auto`, `THREADS=<nproc>`.
 - [ ] `omarchy-transcribe --list-models` prints nothing, exit 0.
-- [ ] `omarchy-transcribe ~/Videos/qa-clip.mp4 small` (no model yet, in a terminal) prints "No whisper models found." and offers the download via gum. Answer **No** → exits 1 with the hint to run `--download small`.
+- [ ] `omarchy-transcribe ~/Videos/qa-clip.mp4 small` (no model yet) prints "No whisper models found, downloading 'small'...", shows a "Downloading whisper model" notification, downloads it (~466M), then transcribes. No prompt.
 
 ## 2. Per-user setup
 
@@ -49,8 +49,8 @@ makepkg -si
 omarchy-transcribe-install
 ```
 
-- [ ] gum asks to download `small` (~500MB). Answer Yes → curl progress bar → "Saved to ~/.local/share/omarchy-transcribe/models/ggml-small.bin (466M)".
-- [ ] If Vulkan is present: gum asks to install `ggml-vulkan`. Record your answer: ______ (sudo prompt if Yes).
+- [ ] No prompts at all. If no model exists yet: curl progress bar → "Saved to ~/.local/share/omarchy-transcribe/models/ggml-small.bin (466M)". If step 1 already downloaded it: "Whisper models already available" with it listed.
+- [ ] If Vulkan is present: "Vulkan detected, installing ggml-vulkan..." → sudo prompt from pacman → installed. Re-run → "ggml-vulkan already installed".
 - [ ] "Added Transcribe to the Omarchy menu" and the file `~/.config/omarchy/extensions/omarchy-menu.jsonc` gained two lines just before the final `}`: a marker comment and the `trigger.transcribe` row.
 - [ ] If Files was open: a message says Nautilus is running and how to restart it. No Files window was closed.
 - [ ] Notification "Transcribe Ready" appears.

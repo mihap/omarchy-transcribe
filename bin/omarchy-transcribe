@@ -203,19 +203,15 @@ download_model() {
   echo "Saved to $target ($(human_size "$target"))"
 }
 
+# First run with no model anywhere: fetch the default one rather than ask.
 ensure_any_model() {
   if [[ -n $(list_models) ]]; then
     return 0
   fi
 
-  # Current theme's gum colors, not the ones captured at login.
-  # shellcheck source=/dev/null
-  source omarchy-restart-gum
-  if [[ -t 0 && -t 2 ]] && { echo "No whisper models found."; gum confirm "Download the '$DEFAULT_MODEL' model now?"; }; then
-    download_model "$DEFAULT_MODEL"
-  else
-    fail "No whisper models found. Run: omarchy-transcribe --download $DEFAULT_MODEL"
-  fi
+  echo "No whisper models found, downloading '$DEFAULT_MODEL'..."
+  omarchy-notification-send -g "$ICON" "Downloading whisper model" "$DEFAULT_MODEL, this happens once" || true
+  download_model "$DEFAULT_MODEL"
 }
 
 print_config() {

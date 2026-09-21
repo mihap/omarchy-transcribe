@@ -7,7 +7,7 @@ pkgdesc="Transcribe videos and audio to SRT with whisper.cpp from the Omarchy me
 arch=(any)
 url="https://github.com/mihap/omarchy-transcribe"
 license=(MIT)
-depends=(bash omarchy whisper-cpp gum curl file)
+depends=(bash omarchy whisper-cpp curl file)
 optdepends=(
   'nautilus-python: right-click Transcribe entry in Files'
   'ggml-vulkan: GPU-accelerated transcription'

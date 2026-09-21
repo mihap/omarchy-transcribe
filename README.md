@@ -19,12 +19,16 @@ omarchy-transcribe-install
 
 `makepkg -si` pulls in `whisper-cpp` as a dependency. The Nautilus entry
 needs `nautilus-python` (an optional dependency, present on every Omarchy
-desktop). `omarchy-transcribe-install` does the per-user part:
+desktop). `omarchy-transcribe-install` does the per-user part, without prompting:
 
 - downloads the `small` model (~500MB) into `~/.local/share/omarchy-transcribe/models/`
   unless a model is already available (see model directories below)
-- offers to install `ggml-vulkan` for GPU acceleration when Vulkan is detected
+- installs `ggml-vulkan` for GPU acceleration when a Vulkan driver is present
+  (sudo prompt from pacman; CPU transcription works without it)
 - adds a **Transcribe** row to the Omarchy menu (`~/.config/omarchy/extensions/omarchy-menu.jsonc`)
+
+Running `omarchy-transcribe` before any model exists downloads the default
+model on the spot, so the install script is a convenience, not a requirement.
 
 Nautilus only loads extensions at startup. If Files is open, the right-click
 entry appears after `nautilus -q` (which closes open Files windows) or at
@@ -101,9 +105,9 @@ Omarchy loads a theme's gum colors into the environment at login. After
 opened by keybind are fine, but terminals that were already open, and
 anything launched from the Omarchy menu, keep the old colors. Omarchy's
 floating-terminal wrapper works around it by sourcing `omarchy-restart-gum`,
-and so do `omarchy-transcribe` and `omarchy-transcribe-install`. Other
-Omarchy commands you run from a terminal (`omarchy update`, for example) do
-not.
+Other Omarchy commands you run from a terminal (`omarchy update`, for
+example) do not. omarchy-transcribe itself shows no gum prompts, so it is
+not affected.
 
 Two user-side fixes, both optional:
 

@@ -1,24 +1,15 @@
 #!/bin/bash
 
-# omarchy:summary=Set up Transcribe: download the default whisper model and add the menu entry
-# omarchy:args=[--yes]
-# omarchy:examples=omarchy-transcribe-install|omarchy-transcribe-install --yes
+# omarchy:summary=Set up Transcribe: download the default whisper model, enable GPU, add the menu entry
+# omarchy:examples=omarchy-transcribe-install
 
 # Per-user setup for the omarchy-transcribe package. The package itself only
 # touches system paths; everything under $HOME (the model download, the
 # Omarchy menu row) is done here so pacman never writes into a home directory.
+# No prompts: the defaults are the choice.
 
 set -euo pipefail
 shopt -s inherit_errexit
-
-# gum's colors come from the environment, which was captured at login; export
-# the current theme's values so the prompts below follow a theme switched
-# since then. Same thing Omarchy's floating-terminal wrapper does.
-# shellcheck source=/dev/null
-source omarchy-restart-gum
-
-assume_yes=false
-[[ ${1:-} == "--yes" || ${1:-} == "-y" ]] && assume_yes=true
 
 if ! omarchy-cmd-present omarchy-transcribe whisper-cli; then
   echo "omarchy-transcribe or whisper-cli is not installed. Install the package first:" >&2
@@ -30,33 +21,25 @@ fi
 # command itself, so there is one loader.
 eval "$(omarchy-transcribe --print-config)"
 
-# Without a terminal to ask in (a hook, a non-interactive shell) an optional
-# step is skipped rather than assumed, unless --yes was passed.
-confirm() {
-  [[ $assume_yes == true ]] && return 0
-  [[ -t 0 && -t 2 ]] || return 1
-  gum confirm "$1"
-}
-
 # ------------------------------------------------------------------ model
 
 if [[ -n $(omarchy-transcribe --list-models) ]]; then
   echo "Whisper models already available:"
   omarchy-transcribe --list-models | sed 's/^/  /'
 else
-  if confirm "Download the whisper '$DEFAULT_MODEL' model (~500MB) to enable transcription?"; then
-    omarchy-transcribe --download "$DEFAULT_MODEL"
-  else
-    echo "Skipped. Download later with: omarchy-transcribe --download $DEFAULT_MODEL"
-  fi
+  omarchy-transcribe --download "$DEFAULT_MODEL"
 fi
 
 # ------------------------------------------------------------------ GPU
 
 # whisper-cli goes through libggml, which loads backends from /usr/lib/ggml at
-# runtime, so the Vulkan backend is a separate optional package.
-if omarchy-hw-vulkan && ! pacman -Q ggml-vulkan &>/dev/null; then
-  if confirm "Vulkan detected. Install ggml-vulkan for GPU-accelerated transcription?"; then
+# runtime, so the Vulkan backend is a separate package. Install it wherever a
+# Vulkan driver is present; CPU transcription keeps working if this fails.
+if omarchy-hw-vulkan; then
+  if pacman -Q ggml-vulkan &>/dev/null; then
+    echo "GPU acceleration: ggml-vulkan already installed"
+  else
+    echo "Vulkan detected, installing ggml-vulkan for GPU-accelerated transcription..."
     omarchy-pkg-add ggml-vulkan || echo "ggml-vulkan install failed; CPU transcription still works." >&2
   fi
 fi
