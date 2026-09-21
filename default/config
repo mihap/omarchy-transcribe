@@ -1,3 +1,4 @@
+# shellcheck shell=bash disable=SC2034
 # omarchy-transcribe configuration
 #
 # This file is sourced as shell by omarchy-transcribe. The packaged copy lives
@@ -20,5 +21,6 @@ LANGUAGE="auto"
 # Threads for whisper-cli (-t). Empty uses whisper-cli's own default.
 THREADS="$(nproc)"
 
-# Any extra whisper-cli flags, split on whitespace, e.g. "--beam-size 5".
+# Any extra whisper-cli flags, split on whitespace (no glob expansion),
+# e.g. "--beam-size 5".
 WHISPER_ARGS=""

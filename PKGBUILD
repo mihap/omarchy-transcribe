@@ -7,16 +7,21 @@ pkgdesc="Transcribe videos and audio to SRT with whisper.cpp from the Omarchy me
 arch=(any)
 url="https://github.com/mikepevzner/omarchy-transcribe"
 license=(MIT)
-depends=(bash omarchy whisper-cpp nautilus-python gum curl file)
-optdepends=('ggml-vulkan: GPU-accelerated transcription')
+depends=(bash omarchy whisper-cpp gum curl file)
+optdepends=(
+  'nautilus-python: right-click Transcribe entry in Files'
+  'ggml-vulkan: GPU-accelerated transcription'
+)
+makedepends=(git)
 install=omarchy-transcribe.install
-
-# Built straight from the checkout: run `makepkg -si` in the repo root. There is
-# no source=() because the files are right here; switch to a git source when
-# publishing to the AUR.
+# The source is this very checkout, so `makepkg -si` in the repo root builds
+# whatever is committed on the current branch (commit first). For an AUR
+# release, point this at the public git URL with a tag fragment instead.
+source=("$pkgname::git+file://$startdir")
+sha256sums=(SKIP)
 
 package() {
-  cd "$startdir"
+  cd "$srcdir/$pkgname"
 
   install -Dm755 -t "$pkgdir/usr/bin" \
     bin/omarchy-transcribe \

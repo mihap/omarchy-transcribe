@@ -25,11 +25,13 @@ class TranscribeAction(GObject.GObject, Nautilus.MenuProvider):
         if len(paths) == 1:
             cmd = shlex.join([binary, paths[0]])
         else:
-            cmd = "; ".join(
+            # Ask for the model once, then run every file with it.
+            runs = "; ".join(
                 f"echo {shlex.quote(f'Transcribing {path}')} && "
-                f"{shlex.join([binary, path])} || true"
+                f"{shlex.join([binary, path])} \"$model\" || true"
                 for path in paths
             )
+            cmd = f"model=$({shlex.join([binary, '--pick-model'])}) && {{ {runs}; }}"
 
         Gio.Subprocess.new([wrapper, cmd], Gio.SubprocessFlags.NONE)
 

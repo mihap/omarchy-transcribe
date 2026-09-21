@@ -5,15 +5,33 @@
 
 # -u so an unset HOME is an error rather than a set of rm -rf paths rooted at /.
 set -euo pipefail
+shopt -s inherit_errexit
 
-owned_models="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-transcribe"
-config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe"
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
 menu_file="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 marker="// omarchy-transcribe (managed by omarchy-transcribe-install)"
 
-# Directories the user pointed us at for models are theirs; only report them.
-extra_model_dirs=$(bash -c 'source /usr/share/omarchy-transcribe/config 2>/dev/null; source "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe/config" 2>/dev/null; echo "${MODEL_DIRS-$HOME/.local/share/whisper}"')
+# Read the effective config while the command is still installed. Directories
+# the user pointed us at for models are theirs; only report them.
+if omarchy-cmd-present omarchy-transcribe; then
+  eval "$(omarchy-transcribe --print-config)"
+else
+  MODEL_DIRS="$HOME/.local/share/whisper"
+  OWNED_MODEL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-transcribe/models"
+  STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
+  USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe/config"
+fi
+owned_data="$(dirname "$OWNED_MODEL_DIR")"
+config_dir="$(dirname "$USER_CONFIG")"
+
+# ------------------------------------------------------------------ package
+
+# First, because it is the step that can fail (sudo password, Ctrl-C): nothing
+# of the user's is deleted until the package is actually gone. pacman -Rns
+# takes whisper-cpp along only if it was installed as a dependency and nothing
+# else needs it; an explicitly installed whisper-cpp stays. ggml-vulkan is an
+# optdepend and is handled the same way. bash keeps reading this script from
+# the open inode after pacman unlinks it.
+omarchy-pkg-drop omarchy-transcribe
 
 # ------------------------------------------------------------------ menu row
 
@@ -33,25 +51,17 @@ fi
 # ------------------------------------------------------------------ user data
 
 # Models here were downloaded by us and can be downloaded again.
-rm -rf "$owned_models" "$config_dir" "$state_dir"
-
-# ------------------------------------------------------------------ package
-
-# pacman -Rns: whisper-cpp goes with it only if it was installed as a
-# dependency and nothing else needs it; an explicitly installed whisper-cpp
-# stays. ggml-vulkan is an optdepend and is handled the same way.
-omarchy-pkg-drop omarchy-transcribe
-
-if omarchy-cmd-present nautilus; then
-  nautilus -q 2>/dev/null || true
-fi
+rm -rf "$owned_data" "$config_dir" "$STATE_DIR"
 
 echo ""
 echo "Transcribe has been removed."
-echo "Deleted: $owned_models, $config_dir, $state_dir"
-if [[ -n $extra_model_dirs ]]; then
-  echo "Left alone: models in $extra_model_dirs"
+echo "Deleted: $owned_data, $config_dir, $STATE_DIR"
+if [[ -n ${MODEL_DIRS:-} ]]; then
+  echo "Left alone: models in $MODEL_DIRS"
 fi
 if pacman -Q whisper-cpp &>/dev/null; then
   echo "whisper-cpp is still installed (explicitly installed or needed by another package)."
+fi
+if pgrep -x nautilus >/dev/null; then
+  echo "Files (Nautilus) is running; its Transcribe entry hides itself now and disappears fully after 'nautilus -q'."
 fi

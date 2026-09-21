@@ -9,6 +9,7 @@
 # Omarchy menu row) is done here so pacman never writes into a home directory.
 
 set -euo pipefail
+shopt -s inherit_errexit
 
 assume_yes=false
 [[ ${1:-} == "--yes" || ${1:-} == "-y" ]] && assume_yes=true
@@ -19,8 +20,9 @@ if ! omarchy-cmd-present omarchy-transcribe whisper-cli; then
   exit 1
 fi
 
-# The default model name and the shared config loader live in the command.
-default_model=$(bash -c 'source /usr/share/omarchy-transcribe/config 2>/dev/null; source "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe/config" 2>/dev/null; echo "${DEFAULT_MODEL:-small}"')
+# The effective config (shipped defaults + user overrides) comes from the
+# command itself, so there is one loader.
+eval "$(omarchy-transcribe --print-config)"
 
 # Without a terminal to ask in (a hook, a non-interactive shell) an optional
 # step is skipped rather than assumed, unless --yes was passed.
@@ -36,10 +38,10 @@ if [[ -n $(omarchy-transcribe --list-models) ]]; then
   echo "Whisper models already available:"
   omarchy-transcribe --list-models | sed 's/^/  /'
 else
-  if confirm "Download the whisper '$default_model' model (~500MB) to enable transcription?"; then
-    omarchy-transcribe --download "$default_model"
+  if confirm "Download the whisper '$DEFAULT_MODEL' model (~500MB) to enable transcription?"; then
+    omarchy-transcribe --download "$DEFAULT_MODEL"
   else
-    echo "Skipped. Download later with: omarchy-transcribe --download $default_model"
+    echo "Skipped. Download later with: omarchy-transcribe --download $DEFAULT_MODEL"
   fi
 fi
 
@@ -57,7 +59,9 @@ fi
 
 menu_file="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 marker="  // omarchy-transcribe (managed by omarchy-transcribe-install)"
-row='  "trigger.transcribe": {"icon":"󰨖","label":"Transcribe","when":"omarchy-cmd-present omarchy-transcribe","action":"omarchy-transcribe"},'
+# Same wrapper the Nautilus entry uses: a floating terminal shows whisper's
+# progress on long files and keeps errors visible.
+row='  "trigger.transcribe": {"icon":"󰨖","label":"Transcribe","when":"omarchy-cmd-present omarchy-transcribe","action":"omarchy-launch-floating-terminal-with-presentation omarchy-transcribe"},'
 
 if [[ ! -f $menu_file ]]; then
   mkdir -p "$(dirname "$menu_file")"
@@ -95,10 +99,13 @@ fi
 
 # ------------------------------------------------------------------ nautilus
 
-# Nautilus loads python extensions at startup only; quitting it makes the
-# next window pick up the new right-click entry.
-if omarchy-cmd-present nautilus; then
-  nautilus -q 2>/dev/null || true
+# Nautilus loads python extensions at startup only. Quitting it would close
+# every open Files window, so that is left to the user.
+if pgrep -x nautilus >/dev/null; then
+  echo ""
+  echo "Files (Nautilus) is running. The right-click Transcribe entry appears"
+  echo "once it is restarted: run 'nautilus -q' (closes open Files windows)"
+  echo "or wait for your next login."
 fi
 
 omarchy-notification-send -g 󰨖 "Transcribe Ready" "Right-click a video in Files, or open the Omarchy menu." -t 10000

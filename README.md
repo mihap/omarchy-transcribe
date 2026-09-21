@@ -13,18 +13,22 @@ Transcription runs locally with [whisper.cpp](https://github.com/ggerganov/whisp
 ```bash
 git clone https://github.com/mikepevzner/omarchy-transcribe
 cd omarchy-transcribe
-makepkg -si            # builds the package and installs it with pacman
+makepkg -si            # builds the package from the committed checkout and installs it
 omarchy-transcribe-install
 ```
 
-`makepkg -si` pulls in `whisper-cpp` as a dependency. `omarchy-transcribe-install`
-does the per-user part:
+`makepkg -si` pulls in `whisper-cpp` as a dependency. The Nautilus entry
+needs `nautilus-python` (an optional dependency, present on every Omarchy
+desktop). `omarchy-transcribe-install` does the per-user part:
 
 - downloads the `small` model (~500MB) into `~/.local/share/omarchy-transcribe/models/`
   unless a model is already available (see model directories below)
 - offers to install `ggml-vulkan` for GPU acceleration when Vulkan is detected
 - adds a **Transcribe** row to the Omarchy menu (`~/.config/omarchy/extensions/omarchy-menu.jsonc`)
-- quits Nautilus so the next Files window shows the right-click entry
+
+Nautilus only loads extensions at startup. If Files is open, the right-click
+entry appears after `nautilus -q` (which closes open Files windows) or at
+your next login. The install script tells you but does not do it for you.
 
 ## Usage
 
@@ -36,6 +40,8 @@ omarchy-transcribe ~/Videos/talk.mp4 small en
 omarchy-transcribe --path ~/Downloads       # limit the file picker
 omarchy-transcribe --download medium        # fetch another model
 omarchy-transcribe --list-models
+omarchy-transcribe --pick-model             # just show the picker, print the name
+omarchy-transcribe --print-config           # effective config as KEY=value
 ```
 
 The output is always `<dir>/<stem>.srt` beside the input and is overwritten
@@ -44,8 +50,12 @@ on every run. Language defaults to `auto`.
 The model picker lists every `ggml-*.bin` found in the model directories, with
 the last-used model first so Enter repeats the previous choice.
 
-Multi-selecting files in Nautilus transcribes them one after another, asking
-for the model each time.
+Multi-selecting files in Nautilus asks for the model once, then transcribes
+the files one after another in the same floating terminal.
+
+Both the menu row and the Nautilus entry run the command inside Omarchy's
+floating terminal, so whisper's progress stays visible on long files.
+Failures are also reported as a desktop notification.
 
 ## Configuration
 
@@ -72,10 +82,10 @@ The last-used model is remembered in `~/.local/state/omarchy-transcribe/last-mod
 omarchy-transcribe-remove
 ```
 
-This removes the menu row it added, deletes
-`~/.local/share/omarchy-transcribe`, `~/.config/omarchy-transcribe` and
-`~/.local/state/omarchy-transcribe`, then runs `pacman -Rns omarchy-transcribe`
-via `omarchy-pkg-drop`.
+This runs `pacman -Rns omarchy-transcribe` via `omarchy-pkg-drop` first, so
+nothing of yours is deleted if the sudo prompt is cancelled. It then removes
+the menu row it added and deletes `~/.local/share/omarchy-transcribe`,
+`~/.config/omarchy-transcribe` and `~/.local/state/omarchy-transcribe`.
 
 What happens to `whisper-cpp` is decided by pacman, not by this tool:
 
