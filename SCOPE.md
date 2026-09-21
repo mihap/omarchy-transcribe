@@ -62,6 +62,8 @@ Mark a task `DONE` and record the commit sha when it is finished and verified.
 
 ## T7 runbook (needs a terminal for sudo)
 
+The full step-by-step checklist with expected results is in `QA.md`. Short version:
+
 ```bash
 cd ~/my/omarchi-transcribe
 makepkg -si                   # builds from the committed HEAD; or: sudo pacman -U omarchy-transcribe-0.1.0-1-any.pkg.tar.zst
