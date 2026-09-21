@@ -55,6 +55,14 @@ Legend: PASS / FAIL / BLOCKED (needs sudo) / HUMAN (needs GUI interaction).
 - Step 2: gum prompts rendered in Tokyo Night colors on the Lupine theme. **FAIL → fixed** in bb1159f (`source omarchy-restart-gum` before gum). Needs a rebuild (`makepkg -si`) to pick up.
 - Step 9: after `omarchy-transcribe-remove`, no package, system file, user dir, menu row, orphan, or pacman db entry left; whisper-cpp removed with the package; ggml-vulkan (accepted in step 2, explicit) and its ggml dependency remain, as QA.md predicts. PASS.
 
+## Sign-off
+
+Mike, 2026-09-21, on 0.2.0 (a67ef1d): install, per-user setup (promptless
+model download + ggml-vulkan), Nautilus right-click, Omarchy menu, and
+removal all confirmed working. One packaging pitfall found on the way:
+`makepkg -si` reinstalled a stale same-version package instead of
+rebuilding; fixed by bumping pkgver and documenting `makepkg -sif`.
+
 ## Fixes made during the run
 
 - `bin/omarchy-transcribe`: `file -bL` so symlinked media is accepted.
