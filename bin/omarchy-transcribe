@@ -1,0 +1,317 @@
+#!/bin/bash
+
+# omarchy:group=transcribe
+# omarchy:name=
+# omarchy:summary=Transcribe a video or audio file to SRT subtitles with whisper.cpp
+# omarchy:args=[--path path] [--download <model>] [input] [model] [language]
+# omarchy:examples=omarchy-transcribe|omarchy-transcribe --path ~/Videos|omarchy-transcribe ~/Videos/talk.mp4|omarchy-transcribe ~/Videos/talk.mp4 small en|omarchy-transcribe --download small
+
+set -euo pipefail
+
+# ------------------------------------------------------------------ defaults
+#
+# Overridable from /usr/share/omarchy-transcribe/config (shipped) and then
+# ~/.config/omarchy-transcribe/config (user). Both are plain sourced shell.
+
+MODEL_DIRS="$HOME/.local/share/whisper"
+DEFAULT_MODEL="small"
+LANGUAGE="auto"
+THREADS="$(nproc)"
+WHISPER_ARGS=""
+
+SHIPPED_CONFIG="/usr/share/omarchy-transcribe/config"
+USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe/config"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
+OWNED_MODEL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-transcribe/models"
+MODEL_BASE_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
+
+ICON="󰨖"
+INPUT_FORMATS="mp4 mov m4v mkv webm avi mp3 m4a wav flac ogg opus aac wma"
+
+# shellcheck disable=SC1090
+[[ -r $SHIPPED_CONFIG ]] && source "$SHIPPED_CONFIG"
+# shellcheck disable=SC1090
+[[ -r $USER_CONFIG ]] && source "$USER_CONFIG"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  omarchy-transcribe [--path path] [input] [model] [language]
+  omarchy-transcribe --download <model>
+
+With no input, pick a video or audio file from ~/Videos and ~/Music, or only
+from --path when provided. Then pick one of the locally available whisper
+models. The transcript is written as SRT next to the input, with the same
+name, overwriting any previous one.
+
+Options:
+  --path path       Limit interactive fuzzy file selection to this path
+  --download model  Download a ggml model (e.g. small, medium, large-v3-turbo)
+                    into ~/.local/share/omarchy-transcribe/models and exit
+
+Models are looked up in ~/.local/share/omarchy-transcribe/models and in every
+directory listed in MODEL_DIRS (default: ~/.local/share/whisper). A model
+named "small" is the file ggml-small.bin.
+
+Config: ~/.config/omarchy-transcribe/config
+EOF
+}
+
+# ------------------------------------------------------------------ models
+
+model_dirs() {
+  local dir
+  printf '%s\n' "$OWNED_MODEL_DIR"
+  IFS=: read -r -a extra <<<"$MODEL_DIRS"
+  for dir in "${extra[@]}"; do
+    [[ -n $dir ]] && printf '%s\n' "${dir/#\~/$HOME}"
+  done
+}
+
+# Prints "name<TAB>path" per model, first directory wins on duplicate names.
+list_models() {
+  local dir file name
+  declare -A seen=()
+
+  while IFS= read -r dir; do
+    [[ -d $dir ]] || continue
+    for file in "$dir"/ggml-*.bin; do
+      [[ -f $file ]] || continue
+      name=$(basename -- "$file")
+      name="${name#ggml-}"
+      name="${name%.bin}"
+      [[ -n ${seen[$name]:-} ]] && continue
+      seen[$name]=1
+      printf '%s\t%s\n' "$name" "$file"
+    done
+  done < <(model_dirs)
+}
+
+model_path() {
+  local wanted="$1" name path
+
+  if [[ -f $wanted ]]; then
+    printf '%s\n' "$wanted"
+    return 0
+  fi
+
+  while IFS=$'\t' read -r name path; do
+    if [[ $name == "$wanted" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done < <(list_models)
+
+  return 1
+}
+
+human_size() {
+  du -h -- "$1" | cut -f1
+}
+
+last_model() {
+  [[ -r $STATE_DIR/last-model ]] && cat "$STATE_DIR/last-model" || true
+}
+
+remember_model() {
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' "$1" >"$STATE_DIR/last-model"
+}
+
+# Shows the picker with the last-used (or DEFAULT_MODEL) first, so Enter
+# repeats the previous choice.
+select_model() {
+  local preferred name path size
+  local options=() rest=()
+
+  preferred=$(last_model)
+  [[ -n $preferred ]] || preferred="$DEFAULT_MODEL"
+
+  while IFS=$'\t' read -r name path; do
+    size=$(human_size "$path")
+    if [[ $name == "$preferred" ]]; then
+      options+=("$ICON"$'\t'"$name"$'\t'"$size")
+    else
+      rest+=("$ICON"$'\t'"$name"$'\t'"$size")
+    fi
+  done < <(list_models)
+
+  options+=("${rest[@]}")
+
+  if (( ${#options[@]} == 0 )); then
+    return 1
+  fi
+
+  # With a subtext the menu returns "<label><TAB><subtext>"; keep the label.
+  omarchy-menu-select "Select model" "${options[@]}" -- --width 400 | cut -f1
+}
+
+download_model() {
+  local name="$1" url target tmp
+
+  [[ -n $name ]] || { echo "Missing model name" >&2; return 2; }
+  name="${name#ggml-}"
+  name="${name%.bin}"
+
+  url="$MODEL_BASE_URL/ggml-$name.bin"
+  target="$OWNED_MODEL_DIR/ggml-$name.bin"
+  tmp="$target.part"
+
+  if [[ -f $target ]]; then
+    echo "Model '$name' already present at $target"
+    return 0
+  fi
+
+  mkdir -p "$OWNED_MODEL_DIR"
+  echo "Downloading whisper model '$name'..."
+  echo "  $url"
+  if ! curl -fL --progress-bar -C - -o "$tmp" "$url"; then
+    rm -f "$tmp"
+    echo "Download failed for model '$name'" >&2
+    return 1
+  fi
+  mv -f "$tmp" "$target"
+  echo "Saved to $target ($(human_size "$target"))"
+}
+
+ensure_any_model() {
+  if [[ -n $(list_models) ]]; then
+    return 0
+  fi
+
+  echo "No whisper models found."
+  if [[ -t 0 && -t 2 ]] && gum confirm "Download the '$DEFAULT_MODEL' model now?"; then
+    download_model "$DEFAULT_MODEL"
+  else
+    echo "Run: omarchy-transcribe --download $DEFAULT_MODEL" >&2
+    return 1
+  fi
+}
+
+# ------------------------------------------------------------------ input
+
+media_type() {
+  local mime
+  mime=$(file -b --mime-type -- "$1")
+
+  case "$mime" in
+  video/* | audio/*) return 0 ;;
+  *)
+    echo "Unsupported file type: $mime" >&2
+    return 1
+    ;;
+  esac
+}
+
+output_stem() {
+  local input="$1" dir base
+  dir=$(dirname -- "$input")
+  base=$(basename -- "$input")
+  printf '%s/%s' "$dir" "${base%.*}"
+}
+
+transcribe() {
+  local input="$1" model="$2" language="$3" stem
+  local args=()
+
+  stem=$(output_stem "$input")
+
+  args=(-m "$model" -f "$input" -l "$language" -osrt -of "$stem" --print-progress)
+  [[ -n $THREADS ]] && args+=(-t "$THREADS")
+  # shellcheck disable=SC2206
+  [[ -n $WHISPER_ARGS ]] && args+=($WHISPER_ARGS)
+
+  whisper-cli "${args[@]}"
+
+  [[ -f $stem.srt ]] || { echo "whisper-cli produced no $stem.srt" >&2; return 1; }
+  printf '%s.srt\n' "$stem"
+}
+
+# ------------------------------------------------------------------ main
+
+main() {
+  local input="" model="" language="" search_path="" download=""
+  local positional=() model_file output
+
+  while (( $# > 0 )); do
+    case "$1" in
+    --path)
+      shift
+      (( $# > 0 )) || { echo "Missing value for --path" >&2; return 2; }
+      search_path="$1"
+      ;;
+    --download)
+      shift
+      (( $# > 0 )) || { echo "Missing value for --download" >&2; return 2; }
+      download="$1"
+      ;;
+    --help | -h)
+      usage
+      return 0
+      ;;
+    --)
+      shift
+      positional+=("$@")
+      break
+      ;;
+    --*)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      return 2
+      ;;
+    *)
+      positional+=("$1")
+      ;;
+    esac
+    shift
+  done
+
+  if [[ -n $download ]]; then
+    download_model "$download"
+    return
+  fi
+
+  if ! omarchy-cmd-present whisper-cli; then
+    echo "whisper-cli not found. Install whisper-cpp: omarchy-pkg-add whisper-cpp" >&2
+    return 1
+  fi
+
+  input="${positional[0]:-}"
+  model="${positional[1]:-}"
+  language="${positional[2]:-$LANGUAGE}"
+
+  if [[ -z $search_path ]]; then
+    local dir
+    for dir in "$HOME/Videos" "$HOME/Music"; do
+      [[ -d $dir ]] && search_path="${search_path:+$search_path:}$dir"
+    done
+    [[ -n $search_path ]] || search_path="$HOME"
+  fi
+
+  if [[ -z $input ]]; then
+    input=$(omarchy-menu-file "Transcribe video or audio" "$search_path" "$INPUT_FORMATS")
+  fi
+
+  [[ -n $input ]] || return 1
+  [[ -f $input ]] || { echo "File not found: $input" >&2; return 1; }
+  media_type "$input"
+
+  ensure_any_model
+
+  if [[ -z $model ]]; then
+    model=$(select_model)
+  fi
+  [[ -n $model ]] || return 1
+
+  if ! model_file=$(model_path "$model"); then
+    echo "Model not found: $model (run: omarchy-transcribe --download $model)" >&2
+    return 1
+  fi
+  remember_model "$model"
+
+  omarchy-notification-send -g "$ICON" "Transcribing…" "$(basename -- "$input") with $model"
+  output=$(transcribe "$input" "$model_file" "$language")
+  omarchy-notification-send -g "$ICON" "Transcribed with $model" "Saved $(basename -- "$output")"
+}
+
+main "$@"

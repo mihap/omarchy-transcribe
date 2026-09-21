@@ -1,0 +1,24 @@
+# omarchy-transcribe configuration
+#
+# This file is sourced as shell by omarchy-transcribe. The packaged copy lives
+# at /usr/share/omarchy-transcribe/config; put overrides in
+# ~/.config/omarchy-transcribe/config (same keys, only what you change).
+
+# Extra directories to scan for ggml-*.bin whisper models, colon-separated.
+# ~/.local/share/omarchy-transcribe/models is always scanned first and is the
+# only directory omarchy-transcribe-remove deletes. Directories listed here
+# are never deleted.
+MODEL_DIRS="$HOME/.local/share/whisper"
+
+# Model listed first in the picker when nothing has been used yet, and the
+# model downloaded on first run / by omarchy-transcribe-install.
+DEFAULT_MODEL="small"
+
+# Spoken language passed to whisper-cli (-l). "auto" detects it.
+LANGUAGE="auto"
+
+# Threads for whisper-cli (-t). Empty uses whisper-cli's own default.
+THREADS="$(nproc)"
+
+# Any extra whisper-cli flags, split on whitespace, e.g. "--beam-size 5".
+WHISPER_ARGS=""
