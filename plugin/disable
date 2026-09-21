@@ -23,6 +23,13 @@ mkdir -p "$STATE_DIR"
 exec >>"$LOG" 2>&1
 echo "[$(date -Is)] disable: $PLUGIN_DIR"
 
+# On `omarchy plugin remove` the checkout is deleted while this hook is still
+# waiting below, so take a copy of the helper now. (bash keeps reading this
+# script from its open file descriptor even after the unlink.)
+menu_helper=$(mktemp)
+trap 'rm -f "$menu_helper"' EXIT
+cp -- "$PLUGIN_DIR/bin/omarchy-transcribe-menu" "$menu_helper"
+
 still_enabled() {
   [[ -f $SHELL_JSON ]] && jq -e --arg id "$PLUGIN_ID" \
     '(.plugins // []) | any(.[]; (.id // .) == $id)' "$SHELL_JSON" >/dev/null 2>&1
@@ -56,7 +63,7 @@ done
 ext="$EXT_DIR/omarchy-transcribe.py"
 [[ -L $ext && $(readlink -- "$ext") == "$PLUGIN_DIR/"* ]] && rm -f "$ext"
 
-bash "$PLUGIN_DIR/bin/omarchy-transcribe-menu" remove
+bash "$menu_helper" remove
 
 omarchy-notification-send -g 󰨖 "Transcribe disabled" "Command, Files entry and menu row removed. Models kept in ~/.local/share/omarchy-transcribe." -t 8000 || true
 echo "disabled"

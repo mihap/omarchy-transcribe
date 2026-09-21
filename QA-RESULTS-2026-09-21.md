@@ -76,6 +76,12 @@ rebuilding; fixed by bumping pkgver and documenting `makepkg -sif`.
   package is installed on this machine. The full plugin-mode setup (links,
   extension, floating setup terminal) was verified in a fake HOME only.
   Menu-driven remove (Setup > Plugins > Remove Plugin) not yet run.
+- Cleanup pass after the package was removed by hand: `omarchy plugin remove
+  --yes` ran the disable hook in real plugin mode for the first time and
+  **FAIL → fixed**: the checkout was already deleted by the time the hook
+  finished polling, so `bin/omarchy-transcribe-menu` was gone and the row
+  removal plus notification never ran. The hook now copies the helper to a
+  temp file before it starts waiting.
 
 ## Fixes made during the run
 
