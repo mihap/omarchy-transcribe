@@ -11,6 +11,12 @@
 set -euo pipefail
 shopt -s inherit_errexit
 
+# gum's colors come from the environment, which was captured at login; export
+# the current theme's values so the prompts below follow a theme switched
+# since then. Same thing Omarchy's floating-terminal wrapper does.
+# shellcheck source=/dev/null
+source omarchy-restart-gum
+
 assume_yes=false
 [[ ${1:-} == "--yes" || ${1:-} == "-y" ]] && assume_yes=true
 
