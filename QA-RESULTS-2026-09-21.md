@@ -90,9 +90,14 @@ rebuilding; fixed by bumping pkgver and documenting `makepkg -sif`.
 - Also found live: the shell creates the service twice on `plugin add
   --enable` (rescan, then enable), which opened two setup terminals; now a
   pending marker lets only the first one through (f1d1369).
-- What remains after a plugin remove, by design: models in
-  `~/.local/share/omarchy-transcribe`, and `setup-done` + `plugin.log` in
-  `~/.local/state/omarchy-transcribe` (so a later re-add is quiet).
+- Mike: leaving models, state and packages behind after remove is too much.
+  Reworked (1491948): disable is the reversible one (unlink + menu row,
+  models and packages kept); remove additionally opens a floating terminal
+  that purges models, config, state, and the packages the setup recorded in
+  `installed-packages`. Live: add `--enable` then `remove --yes` left nothing
+  in `$HOME` at all (466M of models included). whisper-cpp and ggml-vulkan
+  stayed because they pre-dated the setup and were therefore not recorded;
+  on a machine where the setup installs them, the purge removes them (sudo).
 
 ## Fixes made during the run
 
