@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# omarchy:summary=Remove Transcribe along with its downloaded models, config, and menu entry
+# omarchy:requires-sudo=true
+
+# -u so an unset HOME is an error rather than a set of rm -rf paths rooted at /.
+set -euo pipefail
+
+owned_models="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-transcribe"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
+menu_file="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
+marker="// omarchy-transcribe (managed by omarchy-transcribe-install)"
+
+# Directories the user pointed us at for models are theirs; only report them.
+extra_model_dirs=$(bash -c 'source /usr/share/omarchy-transcribe/config 2>/dev/null; source "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe/config" 2>/dev/null; echo "${MODEL_DIRS-$HOME/.local/share/whisper}"')
+
+# ------------------------------------------------------------------ menu row
+
+if [[ -f $menu_file ]] && grep -qF "$marker" "$menu_file"; then
+  # Drop the marker line and the row right after it; nothing else is ours.
+  awk -v marker="$marker" '
+    skip { skip = 0; next }
+    index($0, marker) { skip = 1; next }
+    { print }
+  ' "$menu_file" >"$menu_file.tmp"
+  mv -f "$menu_file.tmp" "$menu_file"
+  echo "Removed Transcribe from the Omarchy menu"
+elif [[ -f $menu_file ]] && grep -qF '"trigger.transcribe"' "$menu_file"; then
+  echo "A hand-written trigger.transcribe row is in $menu_file; left it alone (it hides itself once the command is gone)."
+fi
+
+# ------------------------------------------------------------------ user data
+
+# Models here were downloaded by us and can be downloaded again.
+rm -rf "$owned_models" "$config_dir" "$state_dir"
+
+# ------------------------------------------------------------------ package
+
+# pacman -Rns: whisper-cpp goes with it only if it was installed as a
+# dependency and nothing else needs it; an explicitly installed whisper-cpp
+# stays. ggml-vulkan is an optdepend and is handled the same way.
+omarchy-pkg-drop omarchy-transcribe
+
+if omarchy-cmd-present nautilus; then
+  nautilus -q 2>/dev/null || true
+fi
+
+echo ""
+echo "Transcribe has been removed."
+echo "Deleted: $owned_models, $config_dir, $state_dir"
+if [[ -n $extra_model_dirs ]]; then
+  echo "Left alone: models in $extra_model_dirs"
+fi
+if pacman -Q whisper-cpp &>/dev/null; then
+  echo "whisper-cpp is still installed (explicitly installed or needed by another package)."
+fi

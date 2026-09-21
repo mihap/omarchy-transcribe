@@ -3,7 +3,7 @@
 # omarchy:group=transcribe
 # omarchy:name=
 # omarchy:summary=Transcribe a video or audio file to SRT subtitles with whisper.cpp
-# omarchy:args=[--path path] [--download <model>] [input] [model] [language]
+# omarchy:args=[--path path] [--download <model>] [--list-models] [input] [model] [language]
 # omarchy:examples=omarchy-transcribe|omarchy-transcribe --path ~/Videos|omarchy-transcribe ~/Videos/talk.mp4|omarchy-transcribe ~/Videos/talk.mp4 small en|omarchy-transcribe --download small
 
 set -euo pipefail
@@ -48,6 +48,7 @@ Options:
   --path path       Limit interactive fuzzy file selection to this path
   --download model  Download a ggml model (e.g. small, medium, large-v3-turbo)
                     into ~/.local/share/omarchy-transcribe/models and exit
+  --list-models     Print locally available models as "name<TAB>path" and exit
 
 Models are looked up in ~/.local/share/omarchy-transcribe/models and in every
 directory listed in MODEL_DIRS (default: ~/.local/share/whisper). A model
@@ -230,7 +231,7 @@ transcribe() {
 # ------------------------------------------------------------------ main
 
 main() {
-  local input="" model="" language="" search_path="" download=""
+  local input="" model="" language="" search_path="" download="" list=false
   local positional=() model_file output
 
   while (( $# > 0 )); do
@@ -244,6 +245,9 @@ main() {
       shift
       (( $# > 0 )) || { echo "Missing value for --download" >&2; return 2; }
       download="$1"
+      ;;
+    --list-models)
+      list=true
       ;;
     --help | -h)
       usage
@@ -265,6 +269,11 @@ main() {
     esac
     shift
   done
+
+  if [[ $list == true ]]; then
+    list_models
+    return
+  fi
 
   if [[ -n $download ]]; then
     download_model "$download"
