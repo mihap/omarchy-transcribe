@@ -42,7 +42,7 @@ ICON="󰨖"
 purge() {
   local pkgs=() left=()
 
-  echo "Removing Transcribe completely."
+  echo "Transcribe plugin removed. Cleaning up what it installed."
   echo ""
 
   if [[ -r $STATE_DIR/installed-packages ]]; then
@@ -50,17 +50,16 @@ purge() {
   fi
 
   if (( ${#pkgs[@]} > 0 )); then
-    echo "Packages installed by the Transcribe setup: ${pkgs[*]}"
-    echo "Removing them (pacman -Rns takes their unused dependencies too)..."
+    echo "Uninstalling packages the setup added: ${pkgs[*]}"
     if ! omarchy-pkg-drop "${pkgs[@]}"; then
-      left+=("packages ${pkgs[*]} (removal failed or was cancelled; run: sudo pacman -Rns ${pkgs[*]})")
+      left+=("packages ${pkgs[*]} still installed (cancelled or failed; run: sudo pacman -Rns ${pkgs[*]})")
     fi
   else
-    echo "No packages were installed by the setup (whisper-cpp was already present), so none are removed."
+    echo "The setup added no packages (whisper-cpp was already installed), nothing to uninstall."
   fi
 
   echo ""
-  echo "Deleting models, config and state:"
+  echo "Deleting downloaded models and settings:"
   for d in "$DATA_DIR" "$CONFIG_DIR" "$STATE_DIR"; do
     [[ -e $d ]] && echo "  $(du -sh -- "$d" 2>/dev/null | cut -f1)  $d"
   done
@@ -68,11 +67,11 @@ purge() {
 
   echo ""
   if (( ${#left[@]} > 0 )); then
-    echo "Transcribe removed, except: ${left[*]}"
-    omarchy-notification-send -u critical -g "$ICON" "Transcribe removed, with leftovers" "${left[*]}" || true
+    echo "Cleanup finished with leftovers: ${left[*]}"
+    omarchy-notification-send -u critical -g "$ICON" "Transcribe removed, cleanup incomplete" "${left[*]}" || true
   else
-    echo "Transcribe removed. Nothing of it is left on this machine."
-    omarchy-notification-send -g "$ICON" "Transcribe removed" "Models, settings and the packages it installed are gone." -t 8000 || true
+    echo "Cleanup finished."
+    omarchy-notification-send -g "$ICON" "Transcribe removed" "Models, settings and added packages cleaned up." -t 8000 || true
   fi
 }
 
