@@ -50,8 +50,11 @@ Mark a task `DONE` and record the commit sha when it is finished and verified.
 | T6 | `PKGBUILD`: `depends=(whisper-cpp gum)`, `optdepends=(ggml-vulkan)`; installs bin/, nautilus extension, default config; `.install` post_install message pointing at `omarchy-transcribe-install`. `makepkg -f` builds; `namcap` not run (not installed, needs sudo to add). `makepkg -si` pending in T7. | DONE | 1af72de |
 | T7 | End-to-end test on this machine: install package, run install script, right-click a video in Nautilus → Transcribe → pick `small` → `.srt` appears beside it and overwrites on second run; menu row appears; GPU backend check; remove script leaves `~/.local/share/whisper` intact and pacman keeps explicitly installed whisper-cpp. | TODO | |
 | T8 | `README.md`: install, usage, config keys, uninstall semantics (what pacman does with whisper-cpp, what is deleted vs kept). | DONE | 1af72de |
+| R1 | Review fixes. Bugs: `inherit_errexit` + explicit `\|\| return` + stale `.srt` removed before run, so a failed whisper-cli exits 1; failures notify via `fail()` when stderr is not a tty; remove drops the package before any `rm -rf`. Smaller: model name validated against `^[A-Za-z0-9._-]+$`; last-model stores the resolved name; `WHISPER_ARGS` via `read -ra` (no glob); `local extra`; `--print-config` replaces the duplicated loader in install/remove; `--pick-model` lets the Nautilus multi-select ask once; menu row uses the floating-terminal wrapper; Nautilus is no longer quit, the user is told; PKGBUILD uses `git+file://$startdir` source and `nautilus-python` is an optdepend. shellcheck clean on all scripts. namcap still not installed. | DONE | 0164d2b |
 
 ## Verified so far without sudo
+
+- R1: stubbed `whisper-cli` exiting 3 with a stale `.srt` present → rc=1, critical notification, stale file gone. `--download 'nope/../x'` rejected. Path model argument → `last-model` = `medium`. Remove with a failing `omarchy-pkg-drop` stub → rc=1, all three dirs and the menu row untouched; with a working stub → menu byte-identical, dirs gone. Multi-select command string parses under `bash -n` with spaces and quotes in paths. `makepkg -f` from the git source yields a binary identical to the committed one. `makepkg -S` builds a source tarball (PKGBUILD, .SRCINFO, .install only, since VCS sources are not bundled).
 
 - T1: `bin/omarchy-transcribe /tmp/clip.mp4 small` on a 20s clip → `/tmp/clip.srt` in 6s; second run overwrites; unsupported file, unknown model, and bad download all fail cleanly with rc=1.
 - T4/T5: run against a throwaway `$HOME` (with `XDG_*_HOME` unset) with stubbed `nautilus` and `omarchy-pkg-drop`: menu row inserted once, idempotent on re-run, parses as JSON after comment/trailing-comma stripping; remove restores the menu file byte-for-byte and deletes the three owned dirs.
@@ -61,9 +64,10 @@ Mark a task `DONE` and record the commit sha when it is finished and verified.
 
 ```bash
 cd ~/my/omarchi-transcribe
-makepkg -si                   # or: sudo pacman -U omarchy-transcribe-0.1.0-1-any.pkg.tar.zst
+makepkg -si                   # builds from the committed HEAD; or: sudo pacman -U omarchy-transcribe-0.1.0-1-any.pkg.tar.zst
 omarchy-transcribe-install    # models already in ~/.local/share/whisper are found, so no download
-# 1. Files: right-click a video → Transcribe → pick small → <name>.srt appears; run again → overwritten
+nautilus -q                   # so Files loads the new extension (closes open Files windows)
+# 1. Files: right-click a video → Transcribe → pick small → <name>.srt appears; run again → overwritten; multi-select two files → one model prompt
 # 2. Super+Alt+Space menu → Transcribe row present
 # 3. GPU: after accepting ggml-vulkan, `whisper-cli -m ~/.local/share/whisper/ggml-small.bin -f /tmp/clip.mp4` should list a Vulkan device in its startup output
 omarchy-transcribe-remove     # expect: ~/.local/share/whisper untouched, whisper-cpp kept (explicitly installed)
