@@ -10,6 +10,9 @@ PLUGIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
 PATH="$HOME/.local/bin:$PATH"
 
+# Claimed by plugin/enable so a second enable does not open a second setup.
+trap 'rmdir "$STATE_DIR/setup.pending" 2>/dev/null || true' EXIT
+
 echo "Setting up Transcribe (plugin at $PLUGIN_DIR)"
 echo ""
 

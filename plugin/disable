@@ -75,5 +75,10 @@ if [[ -f $MENU_FILE ]] && grep -qF '// omarchy-transcribe (managed by' "$MENU_FI
   echo "Removed Transcribe from the Omarchy menu"
 fi
 
+# This hook's own copy is not needed until the next enable re-installs it
+# (bash has it open, so deleting it now is safe). The setup-done marker and
+# the log stay: they are what make a later re-enable quiet.
+rm -f "$STATE_DIR/plugin-disable"
+
 omarchy-notification-send -g 󰨖 "Transcribe disabled" "Command, Files entry and menu row removed. Models kept in ~/.local/share/omarchy-transcribe." -t 8000 || true
 echo "disabled"

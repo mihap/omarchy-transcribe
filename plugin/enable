@@ -49,8 +49,22 @@ if [[ ! -f $SETUP_MARKER ]] || ! omarchy-cmd-present whisper-cli; then
   # First time (or whisper-cpp got removed): package installs need sudo and
   # the model download deserves a progress bar, so do it where the user can
   # see it. plugin/setup writes the marker when it is done.
+  #
+  # The shell creates the service twice in quick succession on `plugin add
+  # --enable` (rescan, then enable), so claim a pending marker atomically
+  # first; plugin/setup clears it on exit. A stale one from a crashed setup
+  # is ignored after 15 minutes.
+  pending="$STATE_DIR/setup.pending"
+  if [[ -d $pending ]] && [[ -n $(find "$pending" -maxdepth 0 -mmin +15) ]]; then
+    rmdir "$pending" 2>/dev/null || true
+  fi
+  if ! mkdir "$pending" 2>/dev/null; then
+    echo "first-time setup already running, not opening a second terminal"
+    exit 0
+  fi
   echo "first-time setup in a floating terminal"
-  omarchy-launch-floating-terminal-with-presentation "bash $(printf '%q' "$PLUGIN_DIR/plugin/setup")"
+  # The terminal inherits our fds; keep its own chatter out of this log.
+  omarchy-launch-floating-terminal-with-presentation "bash $(printf '%q' "$PLUGIN_DIR/plugin/setup")" >/dev/null 2>&1
   exit 0
 fi
 
