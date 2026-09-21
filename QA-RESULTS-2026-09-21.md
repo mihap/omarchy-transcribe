@@ -63,6 +63,20 @@ removal all confirmed working. One packaging pitfall found on the way:
 `makepkg -si` reinstalled a stale same-version package instead of
 rebuilding; fixed by bumping pkgver and documenting `makepkg -sif`.
 
+## Plugin mode (0.4.0, 1300d27), live against the real shell
+
+- `omarchy plugin add ~/my/omarchi-transcribe --enable --yes`: cloned from the
+  local path, validated, enabled; service loaded and the enable hook ran.
+  PASS.
+- `omarchy plugin disable/enable/remove --yes/add/update`: all PASS; hook log
+  shows each transition. **FAIL → fixed**: the first live disable was
+  misread as a shell restart because the shell writes `shell.json` after
+  destroying the service; the hook now polls for up to 4s.
+- Hooks took the package-mode no-op branch throughout because the pacman
+  package is installed on this machine. The full plugin-mode setup (links,
+  extension, floating setup terminal) was verified in a fake HOME only.
+  Menu-driven remove (Setup > Plugins > Remove Plugin) not yet run.
+
 ## Fixes made during the run
 
 - `bin/omarchy-transcribe`: `file -bL` so symlinked media is accepted.
