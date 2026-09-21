@@ -49,12 +49,19 @@ Legend: PASS / FAIL / BLOCKED (needs sudo) / HUMAN (needs GUI interaction).
 | 9 | pacman removes whisper-cpp | BLOCKED | Package never installed. |
 | 10 | Reinstall from clean state | PASS | Install → download (37s) → install again idempotent → transcription works. |
 
+## Human run (Mike), same day
+
+- Step 1 sudo items: `makepkg -si` installed whisper-cpp as a dependency (install reason verified), post-install message shown. PASS.
+- Step 2: gum prompts rendered in Tokyo Night colors on the Lupine theme. **FAIL → fixed** in bb1159f (`source omarchy-restart-gum` before gum). Needs a rebuild (`makepkg -si`) to pick up.
+- Step 9: after `omarchy-transcribe-remove`, no package, system file, user dir, menu row, orphan, or pacman db entry left; whisper-cpp removed with the package; ggml-vulkan (accepted in step 2, explicit) and its ggml dependency remain, as QA.md predicts. PASS.
+
 ## Fixes made during the run
 
 - `bin/omarchy-transcribe`: `file -bL` so symlinked media is accepted.
 - `PKGBUILD`: URL updated to github.com/mihap (README already said so).
 - `QA.md` step 6: use a truncated mp4 for the whisper failure path.
 - `omarchy-transcribe.install`: post-install text no longer claims to reload Nautilus.
+- `bin/omarchy-transcribe`, `bin/omarchy-transcribe-install`: gum prompts follow the current theme (bb1159f).
 
 ## State left on the machine
 
