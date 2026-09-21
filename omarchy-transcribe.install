@@ -1,7 +1,7 @@
 post_install() {
   cat <<'EOF'
-==> Finish setting up Transcribe for your user (downloads the whisper model,
-==> adds the Omarchy menu entry, and reloads Nautilus):
+==> Finish setting up Transcribe for your user (downloads the whisper model
+==> and adds the Omarchy menu entry):
 ==>
 ==>   omarchy-transcribe-install
 EOF

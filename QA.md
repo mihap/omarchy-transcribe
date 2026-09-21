@@ -99,7 +99,8 @@ Open Files, go to ~/Videos.
 ## 6. Failure visibility (no terminal)
 
 - [ ] Temporarily rename the model: `mv ~/.local/share/omarchy-transcribe/models/ggml-small.bin{,.bak}`; from the Omarchy menu pick Transcribe → clip → picker shows only `base.en` (if downloaded) or the "No whisper models found" failure arrives as a **critical notification**. Restore the file afterwards.
-- [ ] Make whisper fail: `chmod 000 ~/Videos/qa-clip.mp4`; run Transcribe from Nautilus → critical notification "Transcribe failed: whisper-cli failed on qa-clip.mp4 with small"; `qa-clip.srt` was **removed** rather than left stale. `chmod 644` it back.
+- [ ] Make whisper fail on a file that passes the MIME check: `head -c 200000 ~/Videos/qa-clip.mp4 > ~/Videos/qa-broken.mp4` (truncated mp4, still `video/mp4`); run Transcribe on it from Nautilus → critical notification "Transcribe failed: whisper-cli failed on qa-broken.mp4 with small"; no `qa-broken.srt` is left behind. Delete the broken file afterwards.
+- [ ] `chmod 000 ~/Videos/qa-clip.mp4`; run Transcribe → critical notification about no read permission (fails before whisper runs; the existing `qa-clip.srt` is left as is). `chmod 644` it back.
 
 ## 7. GPU (only if ggml-vulkan was installed)
 

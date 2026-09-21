@@ -3,7 +3,7 @@
 Right-click a video or audio file in Files (Nautilus), pick **Transcribe**,
 choose a whisper model, and get `<same-name>.srt` next to the file. Also
 available as **Transcribe** in the Omarchy menu and as `omarchy-transcribe`
-on the command line. Built the same way Omarchy's own `omarchy-transcode` is.
+on the command line.
 
 Transcription runs locally with [whisper.cpp](https://github.com/ggerganov/whisper.cpp)
 (`whisper-cli` from the Arch `whisper-cpp` package).
@@ -11,7 +11,7 @@ Transcription runs locally with [whisper.cpp](https://github.com/ggerganov/whisp
 ## Install
 
 ```bash
-git clone https://github.com/mikepevzner/omarchy-transcribe
+git clone https://github.com/mihap/omarchy-transcribe
 cd omarchy-transcribe
 makepkg -si            # builds the package from the committed checkout and installs it
 omarchy-transcribe-install

@@ -226,7 +226,8 @@ print_config() {
 
 media_type() {
   local mime
-  mime=$(file -b --mime-type -- "$1")
+  # -L: a symlink to a video is a video.
+  mime=$(file -bL --mime-type -- "$1")
 
   case "$mime" in
   video/* | audio/*) return 0 ;;
