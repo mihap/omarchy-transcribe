@@ -131,3 +131,32 @@ nautilus -q
 ```
 
 Then QA.md steps 3 (popups), 4, 5, 7, and the sudo parts of 1 and 9.
+
+---
+
+# Live run — 0.5.0, plugin-only, 2026-09-21 13:26–13:37
+
+Tester: Claude, on Mike's Omarchy 4.0.4 machine; Mike typed the sudo
+passwords in the floating terminals. Code under test: 0e8ebb8 at add time,
+then 65d3d93 and 25b5ad7 via `omarchy plugin update --yes` and a shell
+restart. Popups and Nautilus (QA.md 2 in part, 3, 4, 5) not driven.
+
+| QA.md | Item | Result | Notes |
+|---|---|---|---|
+| 0 | Clean state | PASS | No whisper-cpp, no ggml-vulkan, no plugin, no links, no state, 0 menu rows. |
+| 1 | `plugin add --enable --yes` | PASS | Cloned, enabled, one enable in the log, one setup terminal. |
+| 1 | Setup terminal | PASS | whisper-cpp + ggml-vulkan installed and recorded in `installed-packages`, ggml-small.bin (466M) downloaded, 2 menu lines, `setup-done`, `plugin-disable` copy. 35s including the sudo prompt. |
+| 1 | Links | PASS | Only `~/.local/bin/omarchy-transcribe` and the Nautilus extension link, both into the checkout. |
+| 1 | `--print-config`, `--list-models` through the symlink | PASS | Shipped defaults resolved from the checkout's `default/config`. |
+| 2 | `qa-clip.mp4 small en` | PASS | `.srt` written, `last-model` = small. |
+| 6 | GPU | PASS | `ggml_vulkan: 0 = Intel(R) Arc(tm) B390`, `whisper_backend_init_gpu: found GPU device 0: Vulkan0`. First time this was verified. |
+| 1 | `omarchy restart shell` | PASS (fixed) | 1 disable ("still enabled … shell restart") then, before the fixes, 3 concurrent enables that collided on `install` of the disable copy. After 65d3d93 + 25b5ad7: exactly 1 enable. |
+| 1 | rescan / `plugin update --yes` | PASS (note) | keepLoaded holds: no disable line. On the first add-time instance, two rescans produced nothing at all until the shell restart; on the second add-time instance (after step 10) a rescan produced 5 enables, coalesced to 1 after 25b5ad7. `plugin update` pulled each commit and the links followed. `plugin update` without `--yes` refuses when not on a tty. |
+| 8 | disable | PASS | Notification, links gone, 0 menu rows, menu file byte-identical to the pre-install copy, models/state/packages kept, `plugin-disable` copy kept. |
+| 8 | enable | PASS | Links and row back, "Added Transcribe to the Omarchy menu" once, no terminal. |
+| 9 | `plugin remove --yes` | PASS | Purge terminal opened; after the sudo prompt: no plugin dir, no links, 0 rows (file identical to pre-install), no data/config/state dirs, whisper-cpp and ggml-vulkan removed, no orphans, both `qa-clip.srt` kept. 12s. |
+| 10 | re-add | PASS | Full first-time setup again in one terminal (50s), everything recorded again. |
+
+State left on the machine: plugin installed and enabled at 25b5ad7 (a docs-only
+commit follows), small model present, whisper-cpp and ggml-vulkan installed
+and recorded, one menu row, test media and transcripts in ~/Videos and ~/Music.

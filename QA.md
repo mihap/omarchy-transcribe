@@ -142,7 +142,7 @@ omarchy plugin disable mihap.transcribe
 omarchy plugin enable mihap.transcribe
 ```
 
-- [ ] Links and menu row back, quietly: no terminal, no download; `plugin.log` says "enabled quietly". `omarchy-transcribe qa-clip.mp4 small` works.
+- [ ] Links and menu row back, quietly: no terminal, no download; `plugin.log` says "Added Transcribe to the Omarchy menu" and "enabled quietly"; still one row. `omarchy-transcribe qa-clip.mp4 small` works.
 
 ## 9. Remove
 
