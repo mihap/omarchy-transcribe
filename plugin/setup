@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# First-time plugin setup, shown in a floating terminal by plugin/enable.
+# Installs whisper-cpp, then runs the same per-user setup the pacman package
+# uses (default model, GPU backend, menu row), then records that it is done.
+
+set -euo pipefail
+
+PLUGIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
+PATH="$HOME/.local/bin:$PATH"
+
+echo "Setting up Transcribe (plugin at $PLUGIN_DIR)"
+echo ""
+
+omarchy-pkg-add whisper-cpp
+omarchy-transcribe-install
+
+mkdir -p "$STATE_DIR"
+touch "$STATE_DIR/setup-done"
+
+echo ""
+echo "Disable or remove the plugin from Omarchy menu > Setup > Plugins."
+echo "Downloaded models stay in ~/.local/share/omarchy-transcribe until you delete them."

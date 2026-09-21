@@ -7,9 +7,6 @@
 set -euo pipefail
 shopt -s inherit_errexit
 
-menu_file="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
-marker="// omarchy-transcribe (managed by omarchy-transcribe-install)"
-
 # Read the effective config while the command is still installed. Directories
 # the user pointed us at for models are theirs; only report them.
 if omarchy-cmd-present omarchy-transcribe; then
@@ -35,17 +32,14 @@ omarchy-pkg-drop omarchy-transcribe
 
 # ------------------------------------------------------------------ menu row
 
-if [[ -f $menu_file ]] && grep -qF "$marker" "$menu_file"; then
-  # Drop the marker line and the row right after it; nothing else is ours.
-  awk -v marker="$marker" '
-    skip { skip = 0; next }
-    index($0, marker) { skip = 1; next }
-    { print }
-  ' "$menu_file" >"$menu_file.tmp"
-  mv -f "$menu_file.tmp" "$menu_file"
-  echo "Removed Transcribe from the Omarchy menu"
-elif [[ -f $menu_file ]] && grep -qF '"trigger.transcribe"' "$menu_file"; then
-  echo "A hand-written trigger.transcribe row is in $menu_file; left it alone (it hides itself once the command is gone)."
+# The helper is gone with the package by now; run it from this script's own
+# directory if it is still there, else it was a plugin-mode link and the
+# plugin's disable hook handles the row.
+menu_helper="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/omarchy-transcribe-menu"
+if [[ -x $menu_helper ]]; then
+  "$menu_helper" remove
+elif omarchy-cmd-present omarchy-transcribe-menu; then
+  omarchy-transcribe-menu remove
 fi
 
 # ------------------------------------------------------------------ user data

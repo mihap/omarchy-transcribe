@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Plugin enable hook. Run by plugin/Service.qml whenever the shell loads the
+# service: on `omarchy plugin enable`, and on every shell start while the
+# plugin is enabled. Must therefore be quiet and idempotent.
+#
+# Wires the checkout into the user's home:
+#   ~/.local/bin/omarchy-transcribe*               -> bin/ (symlinks)
+#   ~/.local/share/nautilus-python/extensions/...  -> nautilus/ (symlink)
+#   Transcribe row in the Omarchy menu
+# and, the first time only, opens a floating terminal that installs
+# whisper-cpp (sudo), the GPU backend, and the default model.
+
+set -euo pipefail
+
+PLUGIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+BIN_DIR="$HOME/.local/bin"
+EXT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nautilus-python/extensions"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
+SETUP_MARKER="$STATE_DIR/setup-done"
+LOG="$STATE_DIR/plugin.log"
+
+mkdir -p "$STATE_DIR"
+exec >>"$LOG" 2>&1
+echo "[$(date -Is)] enable: $PLUGIN_DIR"
+
+# The pacman package owns /usr/bin and the system extension dir; a user-level
+# copy on top would shadow nothing and duplicate the Nautilus entry.
+if pacman -Q omarchy-transcribe &>/dev/null; then
+  echo "omarchy-transcribe pacman package is installed; plugin adds nothing on top"
+  exit 0
+fi
+
+mkdir -p "$BIN_DIR" "$EXT_DIR"
+for f in omarchy-transcribe omarchy-transcribe-install omarchy-transcribe-remove omarchy-transcribe-menu; do
+  ln -sfn "$PLUGIN_DIR/bin/$f" "$BIN_DIR/$f"
+done
+ln -sfn "$PLUGIN_DIR/nautilus/omarchy-transcribe.py" "$EXT_DIR/omarchy-transcribe.py"
+
+PATH="$BIN_DIR:$PATH"
+
+if [[ ! -f $SETUP_MARKER ]] || ! omarchy-cmd-present whisper-cli; then
+  # First time (or whisper-cpp got removed): package installs need sudo and
+  # the model download deserves a progress bar, so do it where the user can
+  # see it. plugin/setup writes the marker when it is done.
+  echo "first-time setup in a floating terminal"
+  omarchy-launch-floating-terminal-with-presentation "bash $(printf '%q' "$PLUGIN_DIR/plugin/setup")"
+  exit 0
+fi
+
+omarchy-transcribe-menu add
+echo "enabled quietly"

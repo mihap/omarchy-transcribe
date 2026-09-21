@@ -46,45 +46,10 @@ fi
 
 # ------------------------------------------------------------------ menu row
 
-menu_file="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
-marker="  // omarchy-transcribe (managed by omarchy-transcribe-install)"
-# Same wrapper the Nautilus entry uses: a floating terminal shows whisper's
-# progress on long files and keeps errors visible.
-row='  "trigger.transcribe": {"icon":"󰨖","label":"Transcribe","when":"omarchy-cmd-present omarchy-transcribe","action":"omarchy-launch-floating-terminal-with-presentation omarchy-transcribe"},'
+omarchy-transcribe-menu add
 
-if [[ ! -f $menu_file ]]; then
-  mkdir -p "$(dirname "$menu_file")"
-  cp "${OMARCHY_PATH:-/usr/share/omarchy}/config/omarchy/extensions/omarchy-menu.jsonc" "$menu_file"
-fi
-
-if grep -qF '"trigger.transcribe"' "$menu_file"; then
-  echo "Menu entry already present in $menu_file"
-else
-  # Insert before the last line that closes the top-level object. The file
-  # is JSONC and the shell tolerates trailing commas, so appending a row that
-  # ends in a comma is safe regardless of what precedes it.
-  mapfile -t lines <"$menu_file"
-  last=-1
-  for (( i=${#lines[@]}-1; i>=0; i-- )); do
-    if [[ ${lines[$i]} =~ ^[[:space:]]*\}[[:space:]]*$ ]]; then
-      last=$i
-      break
-    fi
-  done
-
-  if (( last < 0 )); then
-    echo "Could not find the closing brace in $menu_file; add this row yourself:" >&2
-    echo "$row" >&2
-  else
-    {
-      printf '%s\n' "${lines[@]:0:$last}"
-      printf '%s\n' "$marker" "$row"
-      printf '%s\n' "${lines[@]:$last}"
-    } >"$menu_file.tmp"
-    mv -f "$menu_file.tmp" "$menu_file"
-    echo "Added Transcribe to the Omarchy menu ($menu_file)"
-  fi
-fi
+mkdir -p "$STATE_DIR"
+touch "$STATE_DIR/setup-done"
 
 # ------------------------------------------------------------------ nautilus
 

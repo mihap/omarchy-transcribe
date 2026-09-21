@@ -1,4 +1,4 @@
-# QA checklist — omarchy-transcribe 0.3.0
+# QA checklist — omarchy-transcribe 0.4.0
 
 Manual end-to-end test on an Omarchy machine. Tick each box; note the
 actual result next to anything that deviates. Run everything as your normal
@@ -36,7 +36,7 @@ makepkg -si
 - [ ] makepkg resolves and installs `whisper-cpp` (and `ggml`, `ffmpeg` if missing) before building.
 - [ ] Post-install message tells you to run `omarchy-transcribe-install`.
 - [ ] `pacman -Qi whisper-cpp | grep 'Install Reason'` says **Installed as a dependency for another package**.
-- [ ] `pacman -Q omarchy-transcribe` → `omarchy-transcribe 0.3.0-1`.
+- [ ] `pacman -Q omarchy-transcribe` → `omarchy-transcribe 0.4.0-1`.
 - [ ] `grep -c gum /usr/bin/omarchy-transcribe-install` → 0 (a stale package file would say 1; `makepkg -sif` if so).
 - [ ] `pacman -Ql omarchy-transcribe` lists: 3 files in `/usr/bin/`, `/usr/share/nautilus-python/extensions/omarchy-transcribe.py`, `/usr/share/omarchy-transcribe/config`, license, README.
 - [ ] `omarchy-transcribe --help` prints usage, exit 0.
@@ -152,6 +152,25 @@ omarchy-transcribe-remove
 ## 10. Reinstall
 
 - [ ] `makepkg -si && omarchy-transcribe-install` again works from the clean state: whisper-cpp comes back as a dependency, the model downloads again, the menu row is added once.
+
+## 11. Plugin mode (needs the pacman package removed first: `sudo pacman -Rns omarchy-transcribe`)
+
+```bash
+cd ~/my/omarchi-transcribe && git status         # clean; plugin add clones HEAD
+omarchy plugin validate .                        # VALID (run on a clean clone if build dirs are present)
+omarchy plugin add "$PWD" --enable --yes         # local path works like a URL
+```
+
+- [ ] Cloned into `~/.config/omarchy/plugins/mihap.transcribe/`, `omarchy plugin list` shows it `enabled third-party service`.
+- [ ] Within a second, a floating terminal opens: installs whisper-cpp (sudo), downloads the model, installs ggml-vulkan, adds the menu row, "Transcribe Ready" notification, Done.
+- [ ] `ls -la ~/.local/bin/omarchy-transcribe*` → 4 links into the plugin dir; `~/.local/share/nautilus-python/extensions/omarchy-transcribe.py` is a link too.
+- [ ] `~/.local/state/omarchy-transcribe/plugin.log` shows the enable line; `setup-done` marker exists.
+- [ ] `omarchy restart shell` → log gains "disable … still enabled in shell.json" then "enabled quietly"; nothing removed, no terminal popped up.
+- [ ] Right-click a video in Files (after `nautilus -q`) → Transcribe works. Menu row works.
+- [ ] `omarchy plugin disable mihap.transcribe` → notification "Transcribe disabled"; links, extension link and menu row gone; models still in `~/.local/share/omarchy-transcribe`.
+- [ ] `omarchy plugin enable mihap.transcribe` → links and menu row back, quietly (marker present, no terminal).
+- [ ] Super+Space → Setup → Plugins → Remove Plugin → pick Transcribe → floating terminal asks to delete (git repo) → Yes → plugin dir gone, links gone, menu row gone, notification shown.
+- [ ] `omarchy plugin add "$PWD" --enable --yes` again → quiet enable (marker still there), everything back without a second whisper-cpp install or model download.
 
 ## Sign-off
 

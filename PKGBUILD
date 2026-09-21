@@ -1,7 +1,7 @@
 # Maintainer: Mike Pevzner <mike.pevzner@pm.me>
 
 pkgname=omarchy-transcribe
-pkgver=0.3.0
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="Transcribe videos and audio to SRT with whisper.cpp from the Omarchy menu and Nautilus"
 arch=(any)
@@ -28,7 +28,8 @@ package() {
   install -Dm755 -t "$pkgdir/usr/bin" \
     bin/omarchy-transcribe \
     bin/omarchy-transcribe-install \
-    bin/omarchy-transcribe-remove
+    bin/omarchy-transcribe-remove \
+    bin/omarchy-transcribe-menu
 
   install -Dm644 -t "$pkgdir/usr/share/nautilus-python/extensions" \
     nautilus/omarchy-transcribe.py

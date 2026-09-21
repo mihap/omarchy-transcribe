@@ -21,6 +21,33 @@ Rebuilding after local changes: commit them, bump `pkgver` in the PKGBUILD
 (or use `makepkg -sif`, since makepkg reinstalls an existing package file of
 the same version rather than rebuilding it).
 
+### Or: install as an Omarchy plugin
+
+```bash
+omarchy plugin add https://github.com/mihap/omarchy-transcribe.git --enable
+```
+
+The same repo doubles as an Omarchy shell plugin (`manifest.json`, id
+`mihap.transcribe`). It has no bar widget or panel; its only job is to run
+hooks when the shell enables or disables it:
+
+- **Enable** links `omarchy-transcribe*` into `~/.local/bin`, links the
+  Nautilus extension into `~/.local/share/nautilus-python/extensions`, adds
+  the menu row, and, the first time, opens a floating terminal that installs
+  `whisper-cpp` (sudo), the GPU backend, and the default model.
+- **Disable** or **remove** (Omarchy menu > Setup > Plugins, or
+  `omarchy plugin disable|remove mihap.transcribe`) unlinks all of that and
+  removes the menu row. Downloaded models, config, and state stay in your
+  home; `whisper-cpp` stays installed as a regular package.
+- `omarchy plugin update mihap.transcribe` pulls the repo; links follow it.
+
+A hook log is kept at `~/.local/state/omarchy-transcribe/plugin.log`. If the
+pacman package is installed too, the plugin hooks do nothing: the package
+owns the integration.
+
+Pick one of the two: the pacman package for a system-wide install managed by
+pacman, the plugin for a per-user install managed from the Omarchy menu.
+
 `makepkg -si` pulls in `whisper-cpp` as a dependency. The Nautilus entry
 needs `nautilus-python` (an optional dependency, present on every Omarchy
 desktop). `omarchy-transcribe-install` does the per-user part, without prompting:

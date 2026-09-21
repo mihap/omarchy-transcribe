@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# omarchy:summary=Add or remove the Transcribe row in the user's Omarchy menu
+# omarchy:args=<add|remove>
+# omarchy:hidden=true
+
+# The Omarchy menu reads exactly two files: the packaged default and
+# ~/.config/omarchy/extensions/omarchy-menu.jsonc. There is no drop-in dir, so
+# the row is inserted into the user file, guarded by a marker comment that
+# lets `remove` take out precisely the two lines `add` put in. Both are
+# idempotent. The file hot-reloads, no shell restart needed.
+
+set -euo pipefail
+
+MENU_FILE="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
+MARKER="  // omarchy-transcribe (managed by omarchy-transcribe-menu)"
+# Same wrapper the Nautilus entry uses: a floating terminal shows whisper's
+# progress on long files and keeps errors visible. The `when` guard hides the
+# row by itself once the command is gone.
+ROW='  "trigger.transcribe": {"icon":"󰨖","label":"Transcribe","when":"omarchy-cmd-present omarchy-transcribe","action":"omarchy-launch-floating-terminal-with-presentation omarchy-transcribe"},'
+
+add() {
+  if [[ ! -f $MENU_FILE ]]; then
+    mkdir -p "$(dirname "$MENU_FILE")"
+    cp "${OMARCHY_PATH:-/usr/share/omarchy}/config/omarchy/extensions/omarchy-menu.jsonc" "$MENU_FILE"
+  fi
+
+  if grep -qF '"trigger.transcribe"' "$MENU_FILE"; then
+    echo "Menu entry already present in $MENU_FILE"
+    return 0
+  fi
+
+  # Insert before the last line that closes the top-level object. The file
+  # is JSONC and the shell tolerates trailing commas, so appending a row that
+  # ends in a comma is safe regardless of what precedes it.
+  local lines last i
+  mapfile -t lines <"$MENU_FILE"
+  last=-1
+  for (( i=${#lines[@]}-1; i>=0; i-- )); do
+    if [[ ${lines[$i]} =~ ^[[:space:]]*\}[[:space:]]*$ ]]; then
+      last=$i
+      break
+    fi
+  done
+
+  if (( last < 0 )); then
+    echo "Could not find the closing brace in $MENU_FILE; add this row yourself:" >&2
+    echo "$ROW" >&2
+    return 1
+  fi
+
+  {
+    printf '%s\n' "${lines[@]:0:$last}"
+    printf '%s\n' "$MARKER" "$ROW"
+    printf '%s\n' "${lines[@]:$last}"
+  } >"$MENU_FILE.tmp"
+  mv -f "$MENU_FILE.tmp" "$MENU_FILE"
+  echo "Added Transcribe to the Omarchy menu ($MENU_FILE)"
+}
+
+remove() {
+  [[ -f $MENU_FILE ]] || return 0
+
+  # Older installs wrote a marker naming the install script; both are ours.
+  if grep -qF '// omarchy-transcribe (managed by' "$MENU_FILE"; then
+    # Drop the marker line and the row right after it; nothing else is ours.
+    awk '
+      skip { skip = 0; next }
+      index($0, "// omarchy-transcribe (managed by") { skip = 1; next }
+      { print }
+    ' "$MENU_FILE" >"$MENU_FILE.tmp"
+    mv -f "$MENU_FILE.tmp" "$MENU_FILE"
+    echo "Removed Transcribe from the Omarchy menu"
+  elif grep -qF '"trigger.transcribe"' "$MENU_FILE"; then
+    echo "A hand-written trigger.transcribe row is in $MENU_FILE; left it alone (it hides itself once the command is gone)."
+  fi
+}
+
+case "${1:-}" in
+  add) add ;;
+  remove) remove ;;
+  *)
+    echo "Usage: omarchy-transcribe-menu <add|remove>" >&2
+    exit 1
+    ;;
+esac
