@@ -42,7 +42,7 @@ ICON="󰨖"
 purge() {
   local pkgs=() left=()
 
-  echo "Transcribe plugin removed. Cleaning up what it installed."
+  echo "Transcribe plugin removed."
   echo ""
 
   if [[ -r $STATE_DIR/installed-packages ]]; then
@@ -50,15 +50,13 @@ purge() {
   fi
 
   if (( ${#pkgs[@]} > 0 )); then
-    echo "Uninstalling packages the setup added: ${pkgs[*]}"
+    echo "Cleaning up unused dependencies: ${pkgs[*]}"
     if ! omarchy-pkg-drop "${pkgs[@]}"; then
-      left+=("packages ${pkgs[*]} still installed (cancelled or failed; run: sudo pacman -Rns ${pkgs[*]})")
+      left+=("${pkgs[*]} still installed (cancelled or failed; run: sudo pacman -Rns ${pkgs[*]})")
     fi
-  else
-    echo "The setup added no packages (whisper-cpp was already installed), nothing to uninstall."
+    echo ""
   fi
 
-  echo ""
   echo "Deleting downloaded models and settings:"
   for d in "$DATA_DIR" "$CONFIG_DIR" "$STATE_DIR"; do
     [[ -e $d ]] && echo "  $(du -sh -- "$d" 2>/dev/null | cut -f1)  $d"
