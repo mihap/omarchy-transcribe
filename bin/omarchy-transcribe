@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # omarchy:group=transcribe
-# omarchy:name=
 # omarchy:summary=Transcribe a video or audio file to SRT subtitles with whisper.cpp
 # omarchy:args=[--path path] [--download <model>] [--list-models] [--list-available] [--pick-model] [--print-config] [input] [model] [language]
 # omarchy:examples=omarchy-transcribe|omarchy-transcribe --path ~/Videos|omarchy-transcribe ~/Videos/talk.mp4|omarchy-transcribe ~/Videos/talk.mp4 small en|omarchy-transcribe --download small
@@ -187,23 +186,31 @@ list_available() {
 }
 
 # Second picker: well-known models not yet present. Downloads the choice and
-# prints its name. Progress goes to stderr so a caller capturing stdout only
-# gets the name.
+# prints its name; download_model talks on stderr, so a caller capturing
+# stdout only gets the name.
 select_and_download_model() {
-  local name size note installed choice
+  local entry name size note choice
   local options=()
+  declare -A have=()
 
-  while IFS=$'\t' read -r name size note installed; do
-    [[ -n $installed ]] && continue
+  while IFS=$'\t' read -r name _; do
+    have[$name]=1
+  done < <(list_models)
+
+  # Split each entry here rather than re-reading list_available's output: an
+  # empty note column would collapse under a tab IFS and shift the columns.
+  for entry in "${AVAILABLE_MODELS[@]}"; do
+    IFS=$'\t' read -r name size note <<<"$entry"
+    [[ -n ${have[$name]:-} ]] && continue
     options+=("$ICON"$'\t'"$name"$'\t'"$size${note:+ · $note}")
-  done < <(list_available)
+  done
 
   (( ${#options[@]} > 0 )) || { echo "Every well-known model is already installed." >&2; return 1; }
 
   choice=$(omarchy-menu-select "Download model" "${options[@]}" -- --width 520 | cut -f1)
   [[ -n $choice ]] || return 1
 
-  download_model "$choice" >&2
+  download_model "$choice"
   printf '%s\n' "$choice"
 }
 
@@ -239,6 +246,8 @@ select_model() {
   fi
 }
 
+# All chatter on stderr: --pick-model and the picker's download row run
+# inside $(...) in callers that expect nothing but a model name on stdout.
 download_model() {
   local name="$1" url target tmp
 
@@ -254,20 +263,20 @@ download_model() {
   tmp="$target.part"
 
   if [[ -f $target ]]; then
-    echo "Model '$name' already present at $target"
+    echo "Model '$name' already present at $target" >&2
     return 0
   fi
 
   mkdir -p "$OWNED_MODEL_DIR"
-  echo "Downloading whisper model '$name'..."
-  echo "  $url"
+  echo "Downloading whisper model '$name'..." >&2
+  echo "  $url" >&2
   if ! curl -fL --progress-bar -C - -o "$tmp" "$url"; then
     rm -f "$tmp"
     fail "Download failed for model '$name'"
     return
   fi
   mv -f "$tmp" "$target"
-  echo "Saved to $target ($(human_size "$target"))"
+  echo "Saved to $target ($(human_size "$target"))" >&2
 }
 
 # First run with no model anywhere: fetch the default one rather than ask.
@@ -276,7 +285,7 @@ ensure_any_model() {
     return 0
   fi
 
-  echo "No whisper models found, downloading '$DEFAULT_MODEL'..."
+  echo "No whisper models found, downloading '$DEFAULT_MODEL'..." >&2
   omarchy-notification-send -g "$ICON" "Downloading whisper model" "$DEFAULT_MODEL, this happens once" || true
   download_model "$DEFAULT_MODEL"
 }
@@ -309,23 +318,30 @@ output_stem() {
 }
 
 transcribe() {
-  local input="$1" model="$2" language="$3" stem
+  local input="$1" model="$2" language="$3" stem partial rc
   local -a args extra_args
 
   stem=$(output_stem "$input")
+  # whisper-cli appends .srt to -of, so this lands as <stem>.partial.srt and
+  # moves into place only on success: a failed run can neither be masked by
+  # the previous transcript nor destroy it.
+  partial="$stem.partial"
 
-  args=(-m "$model" -f "$input" -l "$language" -osrt -of "$stem" --print-progress)
+  args=(-m "$model" -f "$input" -l "$language" -osrt -of "$partial" --print-progress)
   [[ -n $THREADS ]] && args+=(-t "$THREADS")
   # Word-split only, no glob expansion.
   read -r -a extra_args <<<"$WHISPER_ARGS"
   args+=("${extra_args[@]}")
 
-  # A previous transcript must not be able to mask a failed run.
-  rm -f -- "$stem.srt"
+  rm -f -- "$partial.srt"
+  whisper-cli "${args[@]}" || rc=$?
+  if (( ${rc:-0} != 0 )) || [[ ! -f $partial.srt ]]; then
+    rm -f -- "$partial.srt"
+    (( ${rc:-0} != 0 )) || echo "whisper-cli produced no $partial.srt" >&2
+    return "${rc:-1}"
+  fi
 
-  whisper-cli "${args[@]}" || return $?
-
-  [[ -f $stem.srt ]] || { echo "whisper-cli produced no $stem.srt" >&2; return 1; }
+  mv -f -- "$partial.srt" "$stem.srt"
   printf '%s.srt\n' "$stem"
 }
 

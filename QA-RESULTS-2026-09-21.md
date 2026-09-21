@@ -1,5 +1,12 @@
 # QA run — 2026-09-21
 
+> Historical. This run covers 0.2.0 through 0.4.0, when the repo shipped a
+> pacman package (`makepkg -si`, `omarchy-transcribe-install`,
+> `omarchy-transcribe-remove`) alongside the plugin. 0.5.0 dropped the
+> package; the plugin is the only install path and the current checklist is
+> `QA.md`. The plugin-mode section at the end still describes the current
+> hooks.
+
 Tester: Claude (automated), on Mike's Omarchy 4.0.4 machine.
 Code under test: e420e44 (fixes found during this run are included; the
 package under test was built from 0ca79eb and re-verified against e420e44

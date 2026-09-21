@@ -1,8 +1,10 @@
 #!/bin/bash
 
 # Plugin enable hook. Run by plugin/Service.qml whenever the shell loads the
-# service: on `omarchy plugin enable`, and on every shell start while the
-# plugin is enabled. Must therefore be quiet and idempotent.
+# service (on `omarchy plugin enable`, and on every shell start while the
+# plugin is enabled) and again on every plugin rescan, which is how `omarchy
+# plugin update` refreshes the stored disable hook. Must therefore be quiet
+# and idempotent.
 #
 # Usage: plugin/enable [plugin-dir]   (defaults to this script's parent)
 #

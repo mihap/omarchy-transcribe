@@ -45,6 +45,7 @@ omarchy plugin add "$PWD" --enable --yes         # a URL works the same way
 - [ ] `omarchy-transcribe --print-config` shows `MODEL_DIRS=/home/<you>/.local/share/whisper`, `DEFAULT_MODEL=small`, `LANGUAGE=auto`, `THREADS=<nproc>`.
 - [ ] `omarchy-transcribe --list-models` → `small<TAB>/home/<you>/.local/share/omarchy-transcribe/models/ggml-small.bin`.
 - [ ] `omarchy restart shell` → `plugin.log` gains "disable … still enabled in shell.json" then "enabled quietly"; nothing removed, no terminal popped up, one row in the menu file.
+- [ ] `omarchy plugin update mihap.transcribe` (or `omarchy-shell shell rescanPlugins`) → `plugin.log` gains an "enable" line and "enabled quietly" with **no** "disable" line before it (keepLoaded keeps the service across rescans); `plugin-disable` under the state dir has a fresh mtime.
 - [ ] `nautilus -q` (accepts closing Files windows).
 
 Interrupted setup, optional:
@@ -95,7 +96,8 @@ Open Files, go to ~/Videos.
 ## 5. Failure visibility (no terminal)
 
 - [ ] Temporarily rename the model: `mv ~/.local/share/omarchy-transcribe/models/ggml-small.bin{,.bak}`; from the Omarchy menu pick Transcribe → clip → picker shows only the other models. Restore the file afterwards.
-- [ ] Make whisper fail on a file that passes the MIME check: `head -c 200000 ~/Videos/qa-clip.mp4 > ~/Videos/qa-broken.mp4` (truncated mp4, still `video/mp4`); run Transcribe on it from Nautilus → critical notification "Transcribe failed: whisper-cli failed on qa-broken.mp4 with small"; no `qa-broken.srt` is left behind. Delete the broken file afterwards.
+- [ ] Make whisper fail on a file that passes the MIME check: `head -c 200000 ~/Videos/qa-clip.mp4 > ~/Videos/qa-broken.mp4` (truncated mp4, still `video/mp4`); run Transcribe on it from Nautilus → critical notification "Transcribe failed: whisper-cli failed on qa-broken.mp4 with small"; neither `qa-broken.srt` nor `qa-broken.partial.srt` is left behind. Delete the broken file afterwards.
+- [ ] Previous transcript survives a failure: `cp ~/Videos/qa-clip.srt /tmp/keep.srt`, then `omarchy-transcribe ~/Videos/qa-clip.mp4 small` with whisper made to fail (e.g. `WHISPER_ARGS="--bogus-flag"` in the config) → exit 1, `diff /tmp/keep.srt ~/Videos/qa-clip.srt` is empty. Undo the config change.
 - [ ] `chmod 000 ~/Videos/qa-clip.mp4`; run Transcribe → critical notification about no read permission (fails before whisper runs; the existing `qa-clip.srt` is left as is). `chmod 644` it back.
 
 ## 6. GPU (only if ggml-vulkan was installed)

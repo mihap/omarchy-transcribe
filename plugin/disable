@@ -2,7 +2,7 @@
 
 # Plugin disable hook. Run when the shell destroys the service, which happens
 # on `omarchy plugin disable`, on `omarchy plugin remove`, and when the shell
-# itself restarts.
+# itself restarts (keepLoaded in the manifest keeps it out of plugin rescans).
 #
 # Usage: plugin/disable [plugin-dir]        (hook mode, run by Service.qml)
 #        plugin/disable --purge             (in a floating terminal, see below)

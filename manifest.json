@@ -9,7 +9,7 @@
   "kinds": [
     "service"
   ],
-  "keepLoaded": false,
+  "keepLoaded": true,
   "entryPoints": {
     "service": "plugin/Service.qml"
   }
