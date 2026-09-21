@@ -56,7 +56,31 @@ The output is always `<dir>/<stem>.srt` beside the input and is overwritten
 on every run. Language defaults to `auto`.
 
 The model picker lists every `ggml-*.bin` found in the model directories, with
-the last-used model first so Enter repeats the previous choice.
+the last-used model first so Enter repeats the previous choice. Its last row,
+**Download another model…**, opens a second picker of well-known models with
+sizes, downloads the choice, and continues with it.
+
+## Adding models
+
+```bash
+omarchy-transcribe --list-available       # well-known models, sizes, which are installed
+omarchy-transcribe --download medium      # fetch one by name
+```
+
+| Model | Size | Notes |
+|---|---|---|
+| `tiny`, `tiny.en` | 75M | fastest, rough |
+| `base`, `base.en` | 142M | |
+| `small`, `small.en` | 466M | default, good balance |
+| `medium`, `medium.en` | 1.5G | better accuracy, slower |
+| `large-v3-turbo` | 1.5G | near large-v3 accuracy, much faster |
+| `large-v3` | 2.9G | best accuracy, slowest |
+| `*-q5_0`, `*-q5_1` | ~1/3 | quantized variants of the above |
+
+`.en` models are English-only and slightly better at it. Any other file name
+under `ggerganov/whisper.cpp` on Hugging Face works with `--download` too.
+You can also drop a `ggml-*.bin` into `~/.local/share/omarchy-transcribe/models/`
+or into any directory listed in `MODEL_DIRS`.
 
 Multi-selecting files in Nautilus asks for the model once, then transcribes
 the files one after another in the same floating terminal.

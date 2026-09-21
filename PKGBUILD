@@ -1,7 +1,7 @@
 # Maintainer: Mike Pevzner <mike.pevzner@pm.me>
 
 pkgname=omarchy-transcribe
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="Transcribe videos and audio to SRT with whisper.cpp from the Omarchy menu and Nautilus"
 arch=(any)

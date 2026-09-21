@@ -3,7 +3,7 @@
 # omarchy:group=transcribe
 # omarchy:name=
 # omarchy:summary=Transcribe a video or audio file to SRT subtitles with whisper.cpp
-# omarchy:args=[--path path] [--download <model>] [--list-models] [--pick-model] [--print-config] [input] [model] [language]
+# omarchy:args=[--path path] [--download <model>] [--list-models] [--list-available] [--pick-model] [--print-config] [input] [model] [language]
 # omarchy:examples=omarchy-transcribe|omarchy-transcribe --path ~/Videos|omarchy-transcribe ~/Videos/talk.mp4|omarchy-transcribe ~/Videos/talk.mp4 small en|omarchy-transcribe --download small
 
 set -euo pipefail
@@ -31,6 +31,27 @@ MODEL_BASE_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
 ICON="󰨖"
 INPUT_FORMATS="mp4 mov m4v mkv webm avi mp3 m4a wav flac ogg opus aac wma"
 MODEL_NAME_PATTERN='^[A-Za-z0-9._-]+$'
+DOWNLOAD_ROW="Download another model…"
+
+# Well-known ggml models on huggingface.co/ggerganov/whisper.cpp, with
+# download sizes. Any other name that exists there works with --download too.
+# "name<TAB>size<TAB>note"
+AVAILABLE_MODELS=(
+  $'tiny\t75M\tfastest, rough'
+  $'tiny.en\t75M\tEnglish only'
+  $'base\t142M\t'
+  $'base.en\t142M\tEnglish only'
+  $'small\t466M\tdefault, good balance'
+  $'small.en\t466M\tEnglish only'
+  $'small-q5_1\t182M\tsmall, quantized'
+  $'medium\t1.5G\tbetter accuracy, slower'
+  $'medium.en\t1.5G\tEnglish only'
+  $'medium-q5_0\t515M\tmedium, quantized'
+  $'large-v3-turbo\t1.5G\tnear large-v3 accuracy, much faster'
+  $'large-v3-turbo-q5_0\t548M\tturbo, quantized'
+  $'large-v3\t2.9G\tbest accuracy, slowest'
+  $'large-v3-q5_0\t1.1G\tlarge-v3, quantized'
+)
 
 # shellcheck disable=SC1090
 [[ -r $SHIPPED_CONFIG ]] && source "$SHIPPED_CONFIG"
@@ -54,13 +75,15 @@ Options:
   --download model  Download a ggml model (e.g. small, medium, large-v3-turbo)
                     into ~/.local/share/omarchy-transcribe/models and exit
   --list-models     Print locally available models as "name<TAB>path" and exit
+  --list-available  Print well-known downloadable models with sizes and exit
   --pick-model      Show the model picker, print the chosen name, and exit
                     (lets a caller ask once for several files)
   --print-config    Print the effective configuration as KEY=value and exit
 
 Models are looked up in ~/.local/share/omarchy-transcribe/models and in every
 directory listed in MODEL_DIRS (default: ~/.local/share/whisper). A model
-named "small" is the file ggml-small.bin.
+named "small" is the file ggml-small.bin. The picker's last row downloads
+another model; so does --download, or dropping a ggml-*.bin into a model dir.
 
 Config: ~/.config/omarchy-transcribe/config
 EOF
@@ -144,10 +167,47 @@ remember_model() {
   printf '%s\n' "$1" >"$STATE_DIR/last-model"
 }
 
+# Prints "name<TAB>size<TAB>note" for each well-known model, plus "installed"
+# in a fourth column when it is already present locally.
+list_available() {
+  local entry name size note
+  declare -A have=()
+
+  while IFS=$'\t' read -r name _; do
+    have[$name]=1
+  done < <(list_models)
+
+  for entry in "${AVAILABLE_MODELS[@]}"; do
+    IFS=$'\t' read -r name size note <<<"$entry"
+    printf '%s\t%s\t%s\t%s\n' "$name" "$size" "$note" "${have[$name]:+installed}"
+  done
+}
+
+# Second picker: well-known models not yet present. Downloads the choice and
+# prints its name. Progress goes to stderr so a caller capturing stdout only
+# gets the name.
+select_and_download_model() {
+  local name size note installed choice
+  local options=()
+
+  while IFS=$'\t' read -r name size note installed; do
+    [[ -n $installed ]] && continue
+    options+=("$ICON"$'\t'"$name"$'\t'"$size${note:+ · $note}")
+  done < <(list_available)
+
+  (( ${#options[@]} > 0 )) || { echo "Every well-known model is already installed." >&2; return 1; }
+
+  choice=$(omarchy-menu-select "Download model" "${options[@]}" -- --width 520 | cut -f1)
+  [[ -n $choice ]] || return 1
+
+  download_model "$choice" >&2
+  printf '%s\n' "$choice"
+}
+
 # Shows the picker with the last-used (or DEFAULT_MODEL) first, so Enter
-# repeats the previous choice.
+# repeats the previous choice. The last row downloads another model.
 select_model() {
-  local preferred name path size
+  local preferred name path size choice
   local options=() rest=()
 
   preferred=$(last_model)
@@ -163,13 +223,17 @@ select_model() {
   done < <(list_models)
 
   options+=("${rest[@]}")
-
-  if (( ${#options[@]} == 0 )); then
-    return 1
-  fi
+  options+=("󰇚"$'\t'"$DOWNLOAD_ROW"$'\t'"medium, large-v3-turbo, …")
 
   # With a subtext the menu returns "<label><TAB><subtext>"; keep the label.
-  omarchy-menu-select "Select model" "${options[@]}" -- --width 400 | cut -f1
+  choice=$(omarchy-menu-select "Select model" "${options[@]}" -- --width 400 | cut -f1)
+  [[ -n $choice ]] || return 1
+
+  if [[ $choice == "$DOWNLOAD_ROW" ]]; then
+    select_and_download_model
+  else
+    printf '%s\n' "$choice"
+  fi
 }
 
 download_model() {
@@ -283,6 +347,7 @@ main() {
       mode="download"
       ;;
     --list-models) mode="list" ;;
+    --list-available) mode="available" ;;
     --pick-model) mode="pick" ;;
     --print-config) mode="config" ;;
     --help | -h)
@@ -313,6 +378,10 @@ main() {
     ;;
   list)
     list_models
+    return
+    ;;
+  available)
+    list_available | column -t -s $'\t' -N MODEL,SIZE,NOTE,STATUS 2>/dev/null || list_available
     return
     ;;
   download)

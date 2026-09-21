@@ -1,4 +1,4 @@
-# QA checklist — omarchy-transcribe 0.2.0
+# QA checklist — omarchy-transcribe 0.3.0
 
 Manual end-to-end test on an Omarchy machine. Tick each box; note the
 actual result next to anything that deviates. Run everything as your normal
@@ -36,7 +36,7 @@ makepkg -si
 - [ ] makepkg resolves and installs `whisper-cpp` (and `ggml`, `ffmpeg` if missing) before building.
 - [ ] Post-install message tells you to run `omarchy-transcribe-install`.
 - [ ] `pacman -Qi whisper-cpp | grep 'Install Reason'` says **Installed as a dependency for another package**.
-- [ ] `pacman -Q omarchy-transcribe` → `omarchy-transcribe 0.2.0-1`.
+- [ ] `pacman -Q omarchy-transcribe` → `omarchy-transcribe 0.3.0-1`.
 - [ ] `grep -c gum /usr/bin/omarchy-transcribe-install` → 0 (a stale package file would say 1; `makepkg -sif` if so).
 - [ ] `pacman -Ql omarchy-transcribe` lists: 3 files in `/usr/bin/`, `/usr/share/nautilus-python/extensions/omarchy-transcribe.py`, `/usr/share/omarchy-transcribe/config`, license, README.
 - [ ] `omarchy-transcribe --help` prints usage, exit 0.
@@ -78,7 +78,9 @@ omarchy-transcribe qa-clip.mp4 small
 - [ ] `omarchy-transcribe ~/.bashrc small` → "Unsupported file type: text/plain", exit 1.
 - [ ] `omarchy-transcribe --download 'bad/../name'` → "Invalid model name", exit 1, nothing created under the models dir.
 - [ ] `omarchy-transcribe --download small` → "already present", exit 0.
-- [ ] `omarchy-transcribe --download base.en` → downloads `ggml-base.en.bin` (~148M). `--list-models` now shows `base.en` and `small`.
+- [ ] `omarchy-transcribe --download base.en` → downloads `ggml-base.en.bin` (~142M). `--list-models` now shows `base.en` and `small`.
+- [ ] `omarchy-transcribe --list-available` → table of 14 models with SIZE and NOTE columns; `small` and `base.en` marked `installed`.
+- [ ] `omarchy-transcribe qa-clip.mp4` → picker's last row is **Download another model…**. Pick it → second popup lists only models not yet installed, with sizes → pick `tiny` → download progress in the terminal → transcription runs with tiny → `last-model` is `tiny`.
 
 ## 4. Nautilus right-click
 
