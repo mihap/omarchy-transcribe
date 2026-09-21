@@ -1,7 +1,7 @@
 # Maintainer: Mike Pevzner <mike.pevzner@pm.me>
 
 pkgname=omarchy-transcribe
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="Transcribe videos and audio to SRT with whisper.cpp from the Omarchy menu and Nautilus"
 arch=(any)
@@ -15,7 +15,9 @@ optdepends=(
 makedepends=(git)
 install=omarchy-transcribe.install
 # The source is this very checkout, so `makepkg -si` in the repo root builds
-# whatever is committed on the current branch (commit first). For an AUR
+# whatever is committed on the current branch (commit first). makepkg reuses
+# an existing package file of the same version instead of rebuilding, so bump
+# pkgver/pkgrel for every change, or run `makepkg -sif` to force. For an AUR
 # release, point this at the public git URL with a tag fragment instead.
 source=("$pkgname::git+file://$startdir")
 sha256sums=(SKIP)

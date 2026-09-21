@@ -17,6 +17,10 @@ makepkg -si            # builds the package from the committed checkout and inst
 omarchy-transcribe-install
 ```
 
+Rebuilding after local changes: commit them, bump `pkgver` in the PKGBUILD
+(or use `makepkg -sif`, since makepkg reinstalls an existing package file of
+the same version rather than rebuilding it).
+
 `makepkg -si` pulls in `whisper-cpp` as a dependency. The Nautilus entry
 needs `nautilus-python` (an optional dependency, present on every Omarchy
 desktop). `omarchy-transcribe-install` does the per-user part, without prompting:

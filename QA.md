@@ -1,4 +1,4 @@
-# QA checklist — omarchy-transcribe 0.1.0
+# QA checklist — omarchy-transcribe 0.2.0
 
 Manual end-to-end test on an Omarchy machine. Tick each box; note the
 actual result next to anything that deviates. Run everything as your normal
@@ -36,7 +36,8 @@ makepkg -si
 - [ ] makepkg resolves and installs `whisper-cpp` (and `ggml`, `ffmpeg` if missing) before building.
 - [ ] Post-install message tells you to run `omarchy-transcribe-install`.
 - [ ] `pacman -Qi whisper-cpp | grep 'Install Reason'` says **Installed as a dependency for another package**.
-- [ ] `pacman -Q omarchy-transcribe` → `omarchy-transcribe 0.1.0-1`.
+- [ ] `pacman -Q omarchy-transcribe` → `omarchy-transcribe 0.2.0-1`.
+- [ ] `grep -c gum /usr/bin/omarchy-transcribe-install` → 0 (a stale package file would say 1; `makepkg -sif` if so).
 - [ ] `pacman -Ql omarchy-transcribe` lists: 3 files in `/usr/bin/`, `/usr/share/nautilus-python/extensions/omarchy-transcribe.py`, `/usr/share/omarchy-transcribe/config`, license, README.
 - [ ] `omarchy-transcribe --help` prints usage, exit 0.
 - [ ] `omarchy-transcribe --print-config` shows `MODEL_DIRS=/home/<you>/.local/share/whisper`, `DEFAULT_MODEL=small`, `LANGUAGE=auto`, `THREADS=<nproc>`.
