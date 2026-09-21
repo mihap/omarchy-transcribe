@@ -80,8 +80,19 @@ rebuilding; fixed by bumping pkgver and documenting `makepkg -sif`.
   --yes` ran the disable hook in real plugin mode for the first time and
   **FAIL → fixed**: the checkout was already deleted by the time the hook
   finished polling, so `bin/omarchy-transcribe-menu` was gone and the row
-  removal plus notification never ran. The hook now copies the helper to a
-  temp file before it starts waiting.
+  removal plus notification never ran. Second attempt showed the checkout can
+  be gone before the hook even starts, so copying at hook start is not enough
+  either. Final design (766ae78): `plugin/enable` stores a self-contained copy
+  of the disable hook under `~/.local/state/omarchy-transcribe/`, and
+  `Service.qml` runs that copy on destruction. Verified live in full plugin
+  mode (pacman package absent): add `--enable` opened the setup terminal,
+  `remove --yes` left no plugin dir, links, extension, menu row, or hook copy.
+- Also found live: the shell creates the service twice on `plugin add
+  --enable` (rescan, then enable), which opened two setup terminals; now a
+  pending marker lets only the first one through (f1d1369).
+- What remains after a plugin remove, by design: models in
+  `~/.local/share/omarchy-transcribe`, and `setup-done` + `plugin.log` in
+  `~/.local/state/omarchy-transcribe` (so a later re-add is quiet).
 
 ## Fixes made during the run
 

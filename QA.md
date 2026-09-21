@@ -162,14 +162,14 @@ omarchy plugin add "$PWD" --enable --yes         # local path works like a URL
 ```
 
 - [ ] Cloned into `~/.config/omarchy/plugins/mihap.transcribe/`, `omarchy plugin list` shows it `enabled third-party service`.
-- [ ] Within a second, a floating terminal opens: installs whisper-cpp (sudo), downloads the model, installs ggml-vulkan, adds the menu row, "Transcribe Ready" notification, Done.
+- [ ] Within a second, exactly one floating terminal opens: installs whisper-cpp (sudo), downloads the model, installs ggml-vulkan, adds the menu row, "Transcribe Ready" notification, Done.
 - [ ] `ls -la ~/.local/bin/omarchy-transcribe*` → 4 links into the plugin dir; `~/.local/share/nautilus-python/extensions/omarchy-transcribe.py` is a link too.
-- [ ] `~/.local/state/omarchy-transcribe/plugin.log` shows the enable line; `setup-done` marker exists.
+- [ ] `~/.local/state/omarchy-transcribe/` has `plugin.log` (enable line), `setup-done`, and `plugin-disable` (the copy of the disable hook that runs on remove).
 - [ ] `omarchy restart shell` → log gains "disable … still enabled in shell.json" then "enabled quietly"; nothing removed, no terminal popped up.
 - [ ] Right-click a video in Files (after `nautilus -q`) → Transcribe works. Menu row works.
 - [ ] `omarchy plugin disable mihap.transcribe` → notification "Transcribe disabled"; links, extension link and menu row gone; models still in `~/.local/share/omarchy-transcribe`.
 - [ ] `omarchy plugin enable mihap.transcribe` → links and menu row back, quietly (marker present, no terminal).
-- [ ] Super+Space → Setup → Plugins → Remove Plugin → pick Transcribe → floating terminal asks to delete (git repo) → Yes → plugin dir gone, links gone, menu row gone, notification shown.
+- [ ] Super+Space → Setup → Plugins → Remove Plugin → pick Transcribe → floating terminal asks to delete (git repo) → Yes → plugin dir gone, links gone, extension link gone, menu row gone, `plugin-disable` copy gone, notification shown. Models and `setup-done` stay.
 - [ ] `omarchy plugin add "$PWD" --enable --yes` again → quiet enable (marker still there), everything back without a second whisper-cpp install or model download.
 
 ## Sign-off
