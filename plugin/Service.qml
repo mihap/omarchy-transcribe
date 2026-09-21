@@ -34,12 +34,15 @@ Item {
     (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state"))
     + "/omarchy-transcribe/plugin-disable"
 
-  function enable() {
+  // The reason lands in the shell journal (journalctl --user -u omarchy-shell),
+  // next to the hook's own log under ~/.local/state.
+  function enable(reason) {
+    console.log("omarchy-transcribe: enable hook (" + reason + ")")
     Quickshell.execDetached(["bash", root.pluginDir + "/plugin/enable", root.pluginDir])
   }
 
-  Component.onCompleted: enable()
-  onManifestChanged: if (manifest) enable()
+  Component.onCompleted: enable("service created")
+  onManifestChanged: if (manifest) enable("manifest injected")
   Component.onDestruction: Quickshell.execDetached(["bash", "-c",
     'if [[ -f "$1" ]]; then exec bash "$1" "$2"; else exec bash "$2/plugin/disable" "$2"; fi',
     "omarchy-transcribe-disable", root.disableCopy, root.pluginDir])
