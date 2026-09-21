@@ -21,7 +21,7 @@ if it exists. Built the same way `omarchy-transcode` is built.
 | State | Last-used model in `~/.local/state/omarchy-transcribe/last-model`, used to preselect in the picker. |
 | Output | `whisper-cli -m <model> -f <input> -osrt -of <dir>/<stem>` → `<dir>/<stem>.srt`. Language default `auto`. |
 | Inputs | video/* and audio/* (audio is free with whisper). |
-| GPU | Optional `ggml-vulkan` gated on `omarchy-hw-vulkan`, as voxtype does. Unverified that whisper-cli picks it up; verify in T7. |
+| GPU | Optional `ggml-vulkan` gated on `omarchy-hw-vulkan`, as voxtype does. Verified live 2026-09-21 on 0.5.0: whisper-cli loads `/usr/lib/ggml/libggml-vulkan.so` and runs the model on the Intel Arc (`whisper_backend_init_gpu: found GPU device 0: Vulkan0`). |
 
 ## Layout
 

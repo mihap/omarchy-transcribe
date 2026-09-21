@@ -44,8 +44,8 @@ omarchy plugin add "$PWD" --enable --yes         # a URL works the same way
 - [ ] `omarchy-transcribe --help` prints usage, exit 0.
 - [ ] `omarchy-transcribe --print-config` shows `MODEL_DIRS=/home/<you>/.local/share/whisper`, `DEFAULT_MODEL=small`, `LANGUAGE=auto`, `THREADS=<nproc>`.
 - [ ] `omarchy-transcribe --list-models` → `small<TAB>/home/<you>/.local/share/omarchy-transcribe/models/ggml-small.bin`.
-- [ ] `omarchy restart shell` → `plugin.log` gains "disable … still enabled in shell.json" then "enabled quietly"; nothing removed, no terminal popped up, one row in the menu file.
-- [ ] `omarchy plugin update mihap.transcribe` (or `omarchy-shell shell rescanPlugins`) → `plugin.log` gains an "enable" line and "enabled quietly" with **no** "disable" line before it (keepLoaded keeps the service across rescans); `plugin-disable` under the state dir has a fresh mtime.
+- [ ] `omarchy restart shell` → `plugin.log` gains one "disable … still enabled in shell.json after 4s" and one "enable … enabled quietly" block. Nothing removed, no terminal popped up, still exactly one row in the menu file.
+- [ ] `omarchy plugin update mihap.transcribe --yes` (or `omarchy-shell shell rescanPlugins`) → `plugin.log` gains one "enable" block with **no** "disable" line before it (keepLoaded keeps the service across rescans; the Service coalesces the shell's repeated manifest injections); `plugin-disable` under the state dir has a fresh mtime; the checkout has the new commit.
 - [ ] `nautilus -q` (accepts closing Files windows).
 
 Interrupted setup, optional:

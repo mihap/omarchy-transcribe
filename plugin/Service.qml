@@ -12,9 +12,11 @@ import Quickshell
 // destroy and recreate it and run both hooks each time. On a rescan the
 // shell instead hands the kept instance a fresh manifest; that is the moment
 // to re-run enable, so `omarchy plugin update` refreshes the stored copy of
-// the disable hook without a shell restart. Enable is quiet and idempotent,
-// and guards its first-time setup with a pending marker, so running it more
-// than once is harmless.
+// the disable hook without a shell restart. The shell injects the manifest
+// several times per rescan (and once right after creation), so the runs are
+// coalesced through a short timer. Enable is quiet and idempotent, and
+// guards its first-time setup with a pending marker, so running it more
+// than once is harmless anyway.
 //
 // `omarchy plugin remove` deletes the checkout at about the same moment the
 // shell destroys this object, so the disable hook cannot be read from the
@@ -34,15 +36,14 @@ Item {
     (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state"))
     + "/omarchy-transcribe/plugin-disable"
 
-  // The reason lands in the shell journal (journalctl --user -u omarchy-shell),
-  // next to the hook's own log under ~/.local/state.
-  function enable(reason) {
-    console.log("omarchy-transcribe: enable hook (" + reason + ")")
-    Quickshell.execDetached(["bash", root.pluginDir + "/plugin/enable", root.pluginDir])
+  Timer {
+    id: enableSoon
+    interval: 500
+    onTriggered: Quickshell.execDetached(["bash", root.pluginDir + "/plugin/enable", root.pluginDir])
   }
 
-  Component.onCompleted: enable("service created")
-  onManifestChanged: if (manifest) enable("manifest injected")
+  Component.onCompleted: enableSoon.restart()
+  onManifestChanged: if (manifest) enableSoon.restart()
   Component.onDestruction: Quickshell.execDetached(["bash", "-c",
     'if [[ -f "$1" ]]; then exec bash "$1" "$2"; else exec bash "$2/plugin/disable" "$2"; fi',
     "omarchy-transcribe-disable", root.disableCopy, root.pluginDir])
