@@ -25,10 +25,14 @@ config_dir="$(dirname "$USER_CONFIG")"
 # First, because it is the step that can fail (sudo password, Ctrl-C): nothing
 # of the user's is deleted until the package is actually gone. pacman -Rns
 # takes whisper-cpp along only if it was installed as a dependency and nothing
-# else needs it; an explicitly installed whisper-cpp stays. ggml-vulkan is an
-# optdepend and is handled the same way. bash keeps reading this script from
-# the open inode after pacman unlinks it.
-omarchy-pkg-drop omarchy-transcribe
+# else needs it; an explicitly installed whisper-cpp stays. Packages the setup
+# script installed itself (ggml-vulkan) were recorded and go too. bash keeps
+# reading this script from the open inode after pacman unlinks it.
+extra_pkgs=()
+if [[ -r $STATE_DIR/installed-packages ]]; then
+  mapfile -t extra_pkgs < <(grep -v '^\s*$' "$STATE_DIR/installed-packages" | sort -u)
+fi
+omarchy-pkg-drop omarchy-transcribe "${extra_pkgs[@]}"
 
 # ------------------------------------------------------------------ menu row
 
@@ -53,9 +57,9 @@ echo "Deleted: $owned_data, $config_dir, $STATE_DIR"
 if [[ -n ${MODEL_DIRS:-} ]]; then
   echo "Left alone: models in $MODEL_DIRS"
 fi
-if pacman -Q whisper-cpp &>/dev/null; then
-  echo "whisper-cpp is still installed (explicitly installed or needed by another package)."
-fi
+for p in whisper-cpp ggml-vulkan; do
+  pacman -Q "$p" &>/dev/null && echo "$p is still installed (it was there before Transcribe, or another package needs it)."
+done
 if pgrep -x nautilus >/dev/null; then
   echo "Files (Nautilus) is running; its Transcribe entry hides itself now and disappears fully after 'nautilus -q'."
 fi

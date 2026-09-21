@@ -40,7 +40,13 @@ if omarchy-hw-vulkan; then
     echo "GPU acceleration: ggml-vulkan already installed"
   else
     echo "Vulkan detected, installing ggml-vulkan for GPU-accelerated transcription..."
-    omarchy-pkg-add ggml-vulkan || echo "ggml-vulkan install failed; CPU transcription still works." >&2
+    if omarchy-pkg-add ggml-vulkan; then
+      # Recorded so removal takes it back out; a pre-existing one is not ours.
+      mkdir -p "$STATE_DIR"
+      echo ggml-vulkan >>"$STATE_DIR/installed-packages"
+    else
+      echo "ggml-vulkan install failed; CPU transcription still works." >&2
+    fi
   fi
 fi
 

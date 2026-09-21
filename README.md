@@ -35,10 +35,16 @@ hooks when the shell enables or disables it:
   Nautilus extension into `~/.local/share/nautilus-python/extensions`, adds
   the menu row, and, the first time, opens a floating terminal that installs
   `whisper-cpp` (sudo), the GPU backend, and the default model.
-- **Disable** or **remove** (Omarchy menu > Setup > Plugins, or
-  `omarchy plugin disable|remove mihap.transcribe`) unlinks all of that and
-  removes the menu row. Downloaded models, config, and state stay in your
-  home; `whisper-cpp` stays installed as a regular package.
+- **Disable** (`omarchy plugin disable mihap.transcribe`, or Setup > Plugins)
+  unlinks all of that and removes the menu row, and keeps the expensive parts:
+  downloaded models and the packages. Enable brings it back without a
+  download.
+- **Remove** (`omarchy plugin remove mihap.transcribe`, or Setup > Plugins >
+  Remove Plugin) does what disable does and then opens a floating terminal
+  that purges everything the plugin brought: the models, its config and
+  state, and the packages its setup installed (`whisper-cpp`, `ggml-vulkan`),
+  which needs sudo. A package that was already on the machine before the
+  setup is not touched; the setup records what it installed.
 - `omarchy plugin update mihap.transcribe` pulls the repo; links follow it.
 
 A hook log is kept at `~/.local/state/omarchy-transcribe/plugin.log`. If the
@@ -142,9 +148,11 @@ omarchy-transcribe-remove
 ```
 
 This runs `pacman -Rns omarchy-transcribe` via `omarchy-pkg-drop` first, so
-nothing of yours is deleted if the sudo prompt is cancelled. It then removes
-the menu row it added and deletes `~/.local/share/omarchy-transcribe`,
-`~/.config/omarchy-transcribe` and `~/.local/state/omarchy-transcribe`.
+nothing of yours is deleted if the sudo prompt is cancelled. Packages the
+setup script installed itself (`ggml-vulkan`) are dropped in the same call.
+It then removes the menu row it added and deletes
+`~/.local/share/omarchy-transcribe`, `~/.config/omarchy-transcribe` and
+`~/.local/state/omarchy-transcribe`.
 
 What happens to `whisper-cpp` is decided by pacman, not by this tool:
 

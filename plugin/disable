@@ -2,29 +2,88 @@
 
 # Plugin disable hook. Run when the shell destroys the service, which happens
 # on `omarchy plugin disable`, on `omarchy plugin remove`, and when the shell
-# itself restarts. Only the first two are a real disable: shell.json still
-# lists the plugin as enabled during a restart, so nothing is touched then.
+# itself restarts.
 #
-# Usage: plugin/disable [plugin-dir]
+# Usage: plugin/disable [plugin-dir]        (hook mode, run by Service.qml)
+#        plugin/disable --purge             (in a floating terminal, see below)
+#
+#   restart  shell.json still lists the plugin -> touch nothing
+#   disable  checkout still there            -> unlink, drop the menu row;
+#                                               models and packages stay
+#   remove   checkout gone                   -> the above, then a floating
+#                                               terminal purges models, config,
+#                                               state, and the packages that
+#                                               setup installed (sudo)
 #
 # Self-contained on purpose: on remove the checkout is already gone when this
 # runs (Service.qml runs the copy plugin/enable stored under ~/.local/state),
 # so nothing here may read a file from the checkout. The plugin dir is only
 # used as a string, to recognise the links that point into it.
-#
-# Undoes what plugin/enable did. Downloaded models, config, and state are
-# user data and stay; whisper-cpp stays too (it is a regular pacman package).
 
 set -euo pipefail
 
 PLUGIN_ID="mihap.transcribe"
-PLUGIN_DIR="${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || echo /nonexistent)}"
 BIN_DIR="$HOME/.local/bin"
 EXT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nautilus-python/extensions"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-transcribe"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
 SHELL_JSON="$HOME/.config/omarchy/shell.json"
 MENU_FILE="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 LOG="$STATE_DIR/plugin.log"
+ICON="󰨖"
+
+# ------------------------------------------------------------------ purge
+
+# Everything the plugin brought onto the machine. Runs in a floating terminal
+# because dropping packages needs sudo. Packages first: they are the step
+# that can fail (cancelled password), and a cancelled sudo must not leave
+# the user with nothing to retry.
+purge() {
+  local pkgs=() left=()
+
+  echo "Removing Transcribe completely."
+  echo ""
+
+  if [[ -r $STATE_DIR/installed-packages ]]; then
+    mapfile -t pkgs < <(grep -v '^\s*$' "$STATE_DIR/installed-packages" | sort -u)
+  fi
+
+  if (( ${#pkgs[@]} > 0 )); then
+    echo "Packages installed by the Transcribe setup: ${pkgs[*]}"
+    echo "Removing them (pacman -Rns takes their unused dependencies too)..."
+    if ! omarchy-pkg-drop "${pkgs[@]}"; then
+      left+=("packages ${pkgs[*]} (removal failed or was cancelled; run: sudo pacman -Rns ${pkgs[*]})")
+    fi
+  else
+    echo "No packages were installed by the setup (whisper-cpp was already present), so none are removed."
+  fi
+
+  echo ""
+  echo "Deleting models, config and state:"
+  for d in "$DATA_DIR" "$CONFIG_DIR" "$STATE_DIR"; do
+    [[ -e $d ]] && echo "  $(du -sh -- "$d" 2>/dev/null | cut -f1)  $d"
+  done
+  rm -rf -- "$DATA_DIR" "$CONFIG_DIR" "$STATE_DIR"
+
+  echo ""
+  if (( ${#left[@]} > 0 )); then
+    echo "Transcribe removed, except: ${left[*]}"
+    omarchy-notification-send -u critical -g "$ICON" "Transcribe removed, with leftovers" "${left[*]}" || true
+  else
+    echo "Transcribe removed. Nothing of it is left on this machine."
+    omarchy-notification-send -g "$ICON" "Transcribe removed" "Models, settings and the packages it installed are gone." -t 8000 || true
+  fi
+}
+
+if [[ ${1:-} == "--purge" ]]; then
+  purge
+  exit 0
+fi
+
+# ------------------------------------------------------------------ hook
+
+PLUGIN_DIR="${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || echo /nonexistent)}"
 
 mkdir -p "$STATE_DIR"
 exec >>"$LOG" 2>&1
@@ -75,10 +134,18 @@ if [[ -f $MENU_FILE ]] && grep -qF '// omarchy-transcribe (managed by' "$MENU_FI
   echo "Removed Transcribe from the Omarchy menu"
 fi
 
-# This hook's own copy is not needed until the next enable re-installs it
-# (bash has it open, so deleting it now is safe). The setup-done marker and
-# the log stay: they are what make a later re-enable quiet.
-rm -f "$STATE_DIR/plugin-disable"
+# Disable or remove? `omarchy plugin remove` deletes the checkout right after
+# it disables the plugin; give that a moment, then look.
+sleep 1
+if [[ -d $PLUGIN_DIR ]]; then
+  # A disable: reversible, so the expensive parts stay. The hook copy is
+  # re-installed by the next enable.
+  rm -f "$STATE_DIR/plugin-disable"
+  omarchy-notification-send -g "$ICON" "Transcribe disabled" "Enable it again from Setup > Plugins. Models kept; remove the plugin to delete everything." -t 8000 || true
+  echo "disabled (checkout still present); models and packages kept"
+  exit 0
+fi
 
-omarchy-notification-send -g 󰨖 "Transcribe disabled" "Command, Files entry and menu row removed. Models kept in ~/.local/share/omarchy-transcribe." -t 8000 || true
-echo "disabled"
+# A remove: purge in a terminal the user can see, since it needs sudo.
+echo "removed (checkout gone); purging in a floating terminal"
+omarchy-launch-floating-terminal-with-presentation "bash $(printf '%q' "$STATE_DIR/plugin-disable") --purge" >/dev/null 2>&1

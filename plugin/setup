@@ -16,12 +16,18 @@ trap 'rmdir "$STATE_DIR/setup.pending" 2>/dev/null || true' EXIT
 echo "Setting up Transcribe (plugin at $PLUGIN_DIR)"
 echo ""
 
-omarchy-pkg-add whisper-cpp
+# Remember what we install, so removing the plugin can take exactly that
+# with it and leave a whisper-cpp the user already had alone.
+mkdir -p "$STATE_DIR"
+if ! pacman -Q whisper-cpp &>/dev/null; then
+  omarchy-pkg-add whisper-cpp
+  echo whisper-cpp >>"$STATE_DIR/installed-packages"
+fi
 omarchy-transcribe-install
 
 mkdir -p "$STATE_DIR"
 touch "$STATE_DIR/setup-done"
 
 echo ""
-echo "Disable or remove the plugin from Omarchy menu > Setup > Plugins."
-echo "Downloaded models stay in ~/.local/share/omarchy-transcribe until you delete them."
+echo "Disable (keeps models) or remove (deletes everything it installed) from"
+echo "Omarchy menu > Setup > Plugins."

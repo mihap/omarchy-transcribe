@@ -167,10 +167,13 @@ omarchy plugin add "$PWD" --enable --yes         # local path works like a URL
 - [ ] `~/.local/state/omarchy-transcribe/` has `plugin.log` (enable line), `setup-done`, and `plugin-disable` (the copy of the disable hook that runs on remove).
 - [ ] `omarchy restart shell` → log gains "disable … still enabled in shell.json" then "enabled quietly"; nothing removed, no terminal popped up.
 - [ ] Right-click a video in Files (after `nautilus -q`) → Transcribe works. Menu row works.
-- [ ] `omarchy plugin disable mihap.transcribe` → notification "Transcribe disabled"; links, extension link and menu row gone; models still in `~/.local/share/omarchy-transcribe`.
+- [ ] `cat ~/.local/state/omarchy-transcribe/installed-packages` lists what the setup installed (`whisper-cpp`, `ggml-vulkan` if they were absent before).
+- [ ] `omarchy plugin disable mihap.transcribe` → notification "Transcribe disabled"; links, extension link and menu row gone; models still in `~/.local/share/omarchy-transcribe`; whisper-cpp still installed.
 - [ ] `omarchy plugin enable mihap.transcribe` → links and menu row back, quietly (marker present, no terminal).
-- [ ] Super+Space → Setup → Plugins → Remove Plugin → pick Transcribe → floating terminal asks to delete (git repo) → Yes → plugin dir gone, links gone, extension link gone, menu row gone, `plugin-disable` copy gone, notification shown. Models and `setup-done` stay.
-- [ ] `omarchy plugin add "$PWD" --enable --yes` again → quiet enable (marker still there), everything back without a second whisper-cpp install or model download.
+- [ ] Super+Space → Setup → Plugins → Remove Plugin → pick Transcribe → floating terminal asks to delete (git repo) → Yes. Then a **second** floating terminal opens: "Removing Transcribe completely", lists the recorded packages, sudo prompt, pacman removes them, then deletes models/config/state, notification "Transcribe removed".
+- [ ] Afterwards: no plugin dir, no links, no extension link, no menu row, no `~/.local/share/omarchy-transcribe`, no `~/.local/state/omarchy-transcribe`, `pacman -Q whisper-cpp ggml-vulkan` → both not found (if they were absent at step 0).
+- [ ] Cancel the sudo prompt instead (Ctrl-C) → packages stay, models/config/state still deleted, critical notification names the leftover packages and the command to remove them.
+- [ ] `omarchy plugin add "$PWD" --enable --yes` again → full first-time setup again (one terminal), since everything was purged.
 
 ## Sign-off
 
