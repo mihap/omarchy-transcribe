@@ -84,6 +84,17 @@ bash ~/.local/state/omarchy-transcribe/plugin-disable --purge
 
 Transcripts and models in `MODEL_DIRS` are never touched.
 
+## Dependencies and license
+
+- `whisper-cpp` and, with a Vulkan driver, `ggml-vulkan`, installed from the
+  Arch repos by the first-time setup and removed again by `plugin remove`.
+- Whisper models downloaded from
+  [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) on
+  Hugging Face.
+- `nautilus-python` for the Files entry, part of the Omarchy base install.
+
+MIT, see `LICENSE`.
+
 ## Layout
 
 ```
