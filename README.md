@@ -58,9 +58,13 @@ downloads another one. Multi-selecting in Files asks for the model once.
 | `large-v3` | 2.9G | best accuracy, slowest |
 | `*-q5_0`, `*-q5_1` | ~1/3 | quantized variants |
 
-`.en` models are English-only. Any other name under `ggerganov/whisper.cpp`
-on Hugging Face works with `--download`, or drop a `ggml-*.bin` into
-`~/.local/share/omarchy-transcribe/models/` or any `MODEL_DIRS` directory.
+`.en` models are English-only. `--download` and the picker's download row
+accept only the models in this table. Each one is fetched from a pinned
+commit of [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp)
+on Hugging Face, capped at its recorded size, and kept only if the SHA-256
+matches the value shipped with the plugin. Any other `ggml-*.bin` can be
+dropped into `~/.local/share/omarchy-transcribe/models/` or a `MODEL_DIRS`
+directory by hand.
 
 ## Configuration
 
@@ -99,7 +103,8 @@ bash ~/.local/state/omarchy-transcribe/plugin-disable --purge
   Arch repos by the first-time setup and removed again by `plugin remove`.
 - Whisper models downloaded from
   [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) on
-  Hugging Face.
+  Hugging Face, at the commit and with the SHA-256 values recorded in
+  `bin/omarchy-transcribe`.
 - `nautilus-python` for the Files entry, part of the Omarchy base install.
 
 MIT, see `LICENSE`.

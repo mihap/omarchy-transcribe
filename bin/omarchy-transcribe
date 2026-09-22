@@ -28,31 +28,40 @@ SHIPPED_CONFIG="$PLUGIN_DIR/default/config"
 USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-transcribe/config"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
 OWNED_MODEL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-transcribe/models"
-MODEL_BASE_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
+# Models come from one pinned commit of huggingface.co/ggerganov/whisper.cpp,
+# never from its moving main branch, and every file is checked against the
+# size and SHA-256 recorded below before it is accepted.
+MODEL_REVISION="5359861c739e955e79d9a303bcbc70fb988958b1"
+MODEL_BASE_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/$MODEL_REVISION"
+DOWNLOAD_CONNECT_TIMEOUT=30   # seconds to establish the connection
+DOWNLOAD_MAX_TIME=7200        # seconds for the whole transfer (3G on a slow link)
+DOWNLOAD_STALL_TIME=60        # abort after this many seconds under 1 KiB/s
 
 ICON="󰨖"
 INPUT_FORMATS="mp4 mov m4v mkv webm avi mp3 m4a wav flac ogg opus aac wma"
 MODEL_NAME_PATTERN='^[A-Za-z0-9._-]+$'
 DOWNLOAD_ROW="Download another model…"
 
-# Well-known ggml models on huggingface.co/ggerganov/whisper.cpp, with
-# download sizes. Any other name that exists there works with --download too.
-# "name<TAB>size<TAB>note"
+# The ggml models --download can fetch, with their exact size and SHA-256 at
+# MODEL_REVISION. Only these names are downloadable; anything else goes into
+# a model directory by hand. Note is last: it may be empty, and a tab IFS
+# would collapse an empty middle column.
+# "name<TAB>size<TAB>bytes<TAB>sha256<TAB>note"
 AVAILABLE_MODELS=(
-  $'tiny\t75M\tfastest, rough'
-  $'tiny.en\t75M\tEnglish only'
-  $'base\t142M\t'
-  $'base.en\t142M\tEnglish only'
-  $'small\t466M\tdefault, good balance'
-  $'small.en\t466M\tEnglish only'
-  $'small-q5_1\t182M\tsmall, quantized'
-  $'medium\t1.5G\tbetter accuracy, slower'
-  $'medium.en\t1.5G\tEnglish only'
-  $'medium-q5_0\t515M\tmedium, quantized'
-  $'large-v3-turbo\t1.5G\tnear large-v3 accuracy, much faster'
-  $'large-v3-turbo-q5_0\t548M\tturbo, quantized'
-  $'large-v3\t2.9G\tbest accuracy, slowest'
-  $'large-v3-q5_0\t1.1G\tlarge-v3, quantized'
+  $'tiny\t75M\t77691713\tbe07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21\tfastest, rough'
+  $'tiny.en\t75M\t77704715\t921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f\tEnglish only'
+  $'base\t142M\t147951465\t60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe\t'
+  $'base.en\t142M\t147964211\ta03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002\tEnglish only'
+  $'small\t466M\t487601967\t1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b\tdefault, good balance'
+  $'small.en\t466M\t487614201\tc6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1bbf9c41e5d\tEnglish only'
+  $'small-q5_1\t182M\t190085487\tae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb\tsmall, quantized'
+  $'medium\t1.5G\t1533763059\t6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208\tbetter accuracy, slower'
+  $'medium.en\t1.5G\t1533774781\tcc37e93478338ec7700281a7ac30a10128929eb8f427dda2e865faa8f6da4356\tEnglish only'
+  $'medium-q5_0\t515M\t539212467\t19fea4b380c3a618ec4723c3eef2eb785ffba0d0538cf43f8f235e7b3b34220f\tmedium, quantized'
+  $'large-v3-turbo\t1.5G\t1624555275\t1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69\tnear large-v3 accuracy, much faster'
+  $'large-v3-turbo-q5_0\t548M\t574041195\t394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2\tturbo, quantized'
+  $'large-v3\t2.9G\t3095033483\t64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2\tbest accuracy, slowest'
+  $'large-v3-q5_0\t1.1G\t1081140203\td75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1\tlarge-v3, quantized'
 )
 
 # shellcheck disable=SC1090
@@ -74,10 +83,13 @@ name, overwriting any previous one.
 
 Options:
   --path path       Limit interactive fuzzy file selection to this path
-  --download model  Download a ggml model (e.g. small, medium, large-v3-turbo)
-                    into ~/.local/share/omarchy-transcribe/models and exit
+  --download model  Download one of the models from --list-available (e.g.
+                    small, medium, large-v3-turbo) into
+                    ~/.local/share/omarchy-transcribe/models and exit. The
+                    file is fetched from a pinned upstream commit and checked
+                    against its recorded size and SHA-256 before it is kept.
   --list-models     Print locally available models as "name<TAB>path" and exit
-  --list-available  Print well-known downloadable models with sizes and exit
+  --list-available  Print downloadable models with sizes and exit
   --pick-model      Show the model picker, print the chosen name, and exit
                     (lets a caller ask once for several files)
   --print-config    Print the effective configuration as KEY=value and exit
@@ -85,7 +97,8 @@ Options:
 Models are looked up in ~/.local/share/omarchy-transcribe/models and in every
 directory listed in MODEL_DIRS (default: ~/.local/share/whisper). A model
 named "small" is the file ggml-small.bin. The picker's last row downloads
-another model; so does --download, or dropping a ggml-*.bin into a model dir.
+another model; so does --download. Any other ggml-*.bin can be dropped into
+a model dir by hand.
 
 Config: ~/.config/omarchy-transcribe/config
 EOF
@@ -169,10 +182,24 @@ remember_model() {
   printf '%s\n' "$1" >"$STATE_DIR/last-model"
 }
 
-# Prints "name<TAB>size<TAB>note" for each well-known model, plus "installed"
-# in a fourth column when it is already present locally.
+# Prints "bytes<TAB>sha256" for a downloadable model, or fails.
+model_spec() {
+  local entry name _size bytes sha
+
+  for entry in "${AVAILABLE_MODELS[@]}"; do
+    IFS=$'\t' read -r name _size bytes sha _ <<<"$entry"
+    if [[ $name == "$1" ]]; then
+      printf '%s\t%s\n' "$bytes" "$sha"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Prints "name<TAB>size<TAB>note" for each downloadable model, plus
+# "installed" in a fourth column when it is already present locally.
 list_available() {
-  local entry name size note
+  local entry name size _bytes _sha note
   declare -A have=()
 
   while IFS=$'\t' read -r name _; do
@@ -180,7 +207,7 @@ list_available() {
   done < <(list_models)
 
   for entry in "${AVAILABLE_MODELS[@]}"; do
-    IFS=$'\t' read -r name size note <<<"$entry"
+    IFS=$'\t' read -r name size _bytes _sha note <<<"$entry"
     printf '%s\t%s\t%s\t%s\n' "$name" "$size" "$note" "${have[$name]:+installed}"
   done
 }
@@ -189,7 +216,7 @@ list_available() {
 # prints its name; download_model talks on stderr, so a caller capturing
 # stdout only gets the name.
 select_and_download_model() {
-  local entry name size note choice
+  local entry name size _bytes _sha note choice
   local options=()
   declare -A have=()
 
@@ -200,7 +227,7 @@ select_and_download_model() {
   # Split each entry here rather than re-reading list_available's output: an
   # empty note column would collapse under a tab IFS and shift the columns.
   for entry in "${AVAILABLE_MODELS[@]}"; do
-    IFS=$'\t' read -r name size note <<<"$entry"
+    IFS=$'\t' read -r name size _bytes _sha note <<<"$entry"
     [[ -n ${have[$name]:-} ]] && continue
     options+=("$ICON"$'\t'"$name"$'\t'"$size${note:+ · $note}")
   done
@@ -248,13 +275,25 @@ select_model() {
 
 # All chatter on stderr: --pick-model and the picker's download row run
 # inside $(...) in callers that expect nothing but a model name on stdout.
+#
+# The name must be in AVAILABLE_MODELS, which fixes the upstream commit, the
+# exact byte count, and the SHA-256. curl refuses to read past that byte count
+# (--max-filesize is enforced during the transfer, not only from the
+# Content-Length), gives up on a stalled or endless connection, and the
+# result is renamed into place only after the size and digest both match.
+# Anything else is deleted, including a resumable .part that is already too
+# large to be right.
 download_model() {
-  local name="$1" url target tmp
+  local name="$1" url target tmp bytes sha got_bytes got_sha
 
   name="${name#ggml-}"
   name="${name%.bin}"
   if [[ ! $name =~ $MODEL_NAME_PATTERN ]]; then
     fail "Invalid model name: '$1' (letters, digits, dot, dash, underscore only)"
+    return
+  fi
+  if ! IFS=$'\t' read -r bytes sha < <(model_spec "$name"); then
+    fail "Unknown model '$name'. Run 'omarchy-transcribe --list-available' for the downloadable ones, or put ggml-$name.bin into a MODEL_DIRS directory yourself."
     return
   fi
 
@@ -268,15 +307,39 @@ download_model() {
   fi
 
   mkdir -p "$OWNED_MODEL_DIR"
-  echo "Downloading whisper model '$name'..." >&2
+  if [[ -f $tmp ]] && (( $(stat -c %s -- "$tmp") >= bytes )); then
+    rm -f -- "$tmp"
+  fi
+
+  echo "Downloading whisper model '$name' ($bytes bytes)..." >&2
   echo "  $url" >&2
-  if ! curl -fL --progress-bar -C - -o "$tmp" "$url"; then
-    rm -f "$tmp"
+  if ! curl -fL --progress-bar -C - -o "$tmp" \
+      --max-filesize "$bytes" \
+      --connect-timeout "$DOWNLOAD_CONNECT_TIMEOUT" \
+      --max-time "$DOWNLOAD_MAX_TIME" \
+      --speed-limit 1024 --speed-time "$DOWNLOAD_STALL_TIME" \
+      "$url"; then
+    rm -f -- "$tmp"
     fail "Download failed for model '$name'"
     return
   fi
-  mv -f "$tmp" "$target"
-  echo "Saved to $target ($(human_size "$target"))" >&2
+
+  got_bytes=$(stat -c %s -- "$tmp")
+  if (( got_bytes != bytes )); then
+    rm -f -- "$tmp"
+    fail "Download of model '$name' is $got_bytes bytes, expected $bytes; discarded"
+    return
+  fi
+  echo "Verifying SHA-256..." >&2
+  got_sha=$(sha256sum -- "$tmp" | cut -d' ' -f1)
+  if [[ $got_sha != "$sha" ]]; then
+    rm -f -- "$tmp"
+    fail "SHA-256 mismatch for model '$name'; discarded"
+    return
+  fi
+
+  mv -f -- "$tmp" "$target"
+  echo "Saved to $target ($(human_size "$target"), SHA-256 verified)" >&2
 }
 
 # First run with no model anywhere: fetch the default one rather than ask.

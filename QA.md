@@ -1,4 +1,4 @@
-# QA checklist — omarchy-transcribe 0.5.1
+# QA checklist — omarchy-transcribe 0.5.2
 
 Manual end-to-end test on an Omarchy machine. Tick each box; note the
 actual result next to anything that deviates. Run everything as your normal
@@ -71,8 +71,10 @@ omarchy-transcribe qa-clip.mp4 small
 - [ ] `omarchy-transcribe qa-clip.mp4 nonexistent` → "Model not found: nonexistent (run: omarchy-transcribe --download nonexistent)", exit 1.
 - [ ] `omarchy-transcribe ~/.bashrc small` → "Unsupported file type: text/plain", exit 1.
 - [ ] `omarchy-transcribe --download 'bad/../name'` → "Invalid model name", exit 1, nothing created under the models dir.
+- [ ] `omarchy-transcribe --download large-v2` → "Unknown model 'large-v2'" pointing at `--list-available` and `MODEL_DIRS`, exit 1, nothing created under the models dir.
 - [ ] `omarchy-transcribe --download small` → "already present", exit 0.
-- [ ] `omarchy-transcribe --download base.en` → downloads `ggml-base.en.bin` (~142M). `--list-models` now shows `base.en` and `small`.
+- [ ] `omarchy-transcribe --download base.en` → URL contains `/resolve/5359861c…/`, downloads `ggml-base.en.bin` (~142M), "Verifying SHA-256...", "Saved to … (SHA-256 verified)". `--list-models` now shows `base.en` and `small`.
+- [ ] Tampered download: with a user config setting `MODEL_BASE_URL` to a local server that serves the right byte count of zeros for `ggml-tiny.bin` → "SHA-256 mismatch for model 'tiny'; discarded", exit 1, no `.part` and no `.bin` left. Too few bytes → "is N bytes, expected 77691713; discarded". Too many bytes → curl stops at 77691713 with exit 63, "Download failed", nothing left.
 - [ ] `omarchy-transcribe --list-available` → table of 14 models with SIZE and NOTE columns; `small` and `base.en` marked `installed`.
 - [ ] `omarchy-transcribe qa-clip.mp4` → picker's last row is **Download another model…**. Pick it → second popup lists only models not yet installed, with sizes → pick `tiny` → download progress in the terminal → transcription runs with tiny → `last-model` is `tiny`.
 
