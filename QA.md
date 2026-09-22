@@ -35,12 +35,12 @@ omarchy plugin add "$PWD" --enable --yes         # a URL works the same way
 ```
 
 - [ ] Cloned into `~/.config/omarchy/plugins/mihap.transcribe/`; `omarchy plugin list` shows it `enabled third-party service`.
-- [ ] Within a second, exactly **one** floating terminal opens: installs whisper-cpp (sudo prompt), "No whisper models found" is not printed (setup downloads first), curl progress bar → "Saved to ~/.local/share/omarchy-transcribe/models/ggml-small.bin (466M)", "Vulkan detected, installing ggml-vulkan" (if Vulkan is present) → installed, "Added Transcribe to the Omarchy menu", notification "Transcribe Ready", then, if Files is running, "Restart Files now? [Y/n]", Done. No prompts other than sudo and that one.
+- [ ] Within a second, exactly **one** floating terminal opens: installs whisper-cpp (sudo prompt), "No whisper models found" is not printed (setup downloads first), curl progress bar → "Saved to ~/.local/share/omarchy-transcribe/models/ggml-small.bin (466M)", "Vulkan detected, installing ggml-vulkan" (if Vulkan is present) → installed, "Added Transcribe to the Omarchy menu", notification "Transcribe Ready", then, if Files is running, "Restarting Files (closes open Files windows)…", Done. No prompts other than sudo.
 - [ ] `ls -la ~/.local/bin/omarchy-transcribe` → a link into the plugin dir. No `omarchy-transcribe-install`, `-remove`, or `-menu` links.
 - [ ] `~/.local/share/nautilus-python/extensions/omarchy-transcribe.py` → a link into the plugin dir.
 - [ ] `~/.local/state/omarchy-transcribe/` has `plugin.log`, `setup-done`, `plugin-disable`, and `installed-packages` listing `whisper-cpp` (and `ggml-vulkan` if it was installed). No `setup.pending`.
 - [ ] `~/.config/omarchy/extensions/omarchy-menu.jsonc` gained two lines just before the final `}`: a marker comment and the `trigger.transcribe` row.
-- [ ] If Files was open: the setup terminal explained that Files keeps running after its windows close and asked "Restart Files now? [Y/n]". Enter → Files windows close, "Files restarted."; `n` → "Not restarted. Run 'nautilus -q' when convenient." and no window closed. With Files not running: no prompt.
+- [ ] If Files was open: its windows closed at the end of the setup, and reopening Files shows the right-click entry without `nautilus -q`. With Files not running: no restart line.
 - [ ] `omarchy-transcribe --help` prints usage, exit 0.
 - [ ] `omarchy-transcribe --print-config` shows `MODEL_DIRS=/home/<you>/.local/share/whisper`, `DEFAULT_MODEL=small`, `LANGUAGE=auto`, `THREADS=<nproc>`.
 - [ ] `omarchy-transcribe --list-models` → `small<TAB>/home/<you>/.local/share/omarchy-transcribe/models/ggml-small.bin`.
@@ -148,11 +148,11 @@ omarchy plugin enable mihap.transcribe
 
 Super+Space → Setup → Plugins → Remove Plugin → pick Transcribe → the floating terminal asks to delete (git repo) → Yes. Or: `omarchy plugin remove mihap.transcribe --yes`.
 
-- [ ] A **second** floating terminal opens: "Transcribe plugin removed.", "Cleaning up unused dependencies..." (sudo prompt), "Deleting downloaded models and settings:" with sizes, "Cleanup finished.", notification "Transcribe removed".
+- [ ] A **second** floating terminal opens: "Transcribe plugin removed.", "Cleaning up unused dependencies..." (sudo prompt), "Deleting downloaded models and settings:" with sizes, "Restarting Files…" if Files was open (its windows close), "Cleanup finished.", notification "Transcribe removed".
 - [ ] Afterwards: no `~/.config/omarchy/plugins/mihap.transcribe`, no link in `~/.local/bin`, no extension link, `grep -c trigger.transcribe` on the menu file → 0 and the file is otherwise as it was before step 1, no `~/.local/share/omarchy-transcribe`, no `~/.config/omarchy-transcribe`, no `~/.local/state/omarchy-transcribe`.
 - [ ] `pacman -Q whisper-cpp ggml-vulkan` → both not found (they were absent at step 0). `pacman -Qdt` shows no new orphans.
 - [ ] `~/Videos/qa-clip.srt` and `~/Music/qa-clip.srt` still exist (outputs are never touched). `~/.local/share/whisper`, if you had one, is untouched.
-- [ ] Omarchy menu: Transcribe row gone. Files: no Transcribe entry (fully after `nautilus -q`).
+- [ ] Omarchy menu: Transcribe row gone. Files: no Transcribe entry.
 
 Variants, each after a fresh step 1:
 

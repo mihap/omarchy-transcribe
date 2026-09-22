@@ -68,6 +68,14 @@ purge() {
   done
   rm -rf -- "$DATA_DIR" "$CONFIG_DIR" "$STATE_DIR"
 
+  # Nautilus keeps the extension module loaded until it is restarted, and
+  # closing its windows does not quit it. Same as the setup: just do it.
+  if pgrep -x nautilus >/dev/null; then
+    echo ""
+    echo "Restarting Files (closes open Files windows) to unload the right-click entry."
+    nautilus -q || true
+  fi
+
   echo ""
   if (( ${#left[@]} > 0 )); then
     echo "Cleanup finished with leftovers: ${left[*]}"

@@ -74,8 +74,8 @@ keys you change.
 
 ```bash
 omarchy plugin disable mihap.transcribe   # unlink; keeps models and packages
-omarchy plugin remove mihap.transcribe    # also purges models, config, state,
-                                          # and the packages setup installed
+omarchy plugin remove mihap.transcribe    # also purges models, config, state, the
+                                          # packages setup installed; restarts Files
 ```
 
 Remove while enabled. If you removed it while disabled, purge by hand:
