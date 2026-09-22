@@ -73,18 +73,20 @@ keys you change.
 ## Disable and remove
 
 ```bash
-omarchy plugin disable mihap.transcribe   # unlink; keeps models and packages
-omarchy plugin remove mihap.transcribe    # also purges models, config, state, the
-                                          # packages setup installed; restarts Files
+omarchy plugin disable mihap.transcribe   # unlink; keeps everything else
+omarchy plugin remove mihap.transcribe    # also deletes what the setup brought in
 ```
+
+Remove deletes `~/.local/share/omarchy-transcribe` (the models it
+downloaded), its config and state, and the packages its setup installed,
+then restarts Files. Your transcripts and any models in `MODEL_DIRS` are
+not its to delete and are left alone.
 
 Remove while enabled. If you removed it while disabled, purge by hand:
 
 ```bash
 bash ~/.local/state/omarchy-transcribe/plugin-disable --purge
 ```
-
-Transcripts and models in `MODEL_DIRS` are never touched.
 
 ## Dependencies and license
 
