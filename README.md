@@ -15,8 +15,10 @@ the menu row, and opens a terminal once to install `whisper-cpp`, download
 the `small` model (~500MB), and install `ggml-vulkan` if you have a Vulkan
 driver. It records what it installed so remove can take it back out.
 
-Restart Files (`nautilus -q`) for the context menu entry. If the setup is
-interrupted, it runs again on the next shell start.
+At the end, it offers to restart Files for the context menu entry. Closing
+Files windows is not enough: Nautilus keeps running in the background, and
+only `nautilus -q` restarts it. If the setup is interrupted, it runs again
+on the next shell start.
 
 `omarchy plugin update mihap.transcribe` pulls the repo. Hook log:
 `~/.local/state/omarchy-transcribe/plugin.log`.

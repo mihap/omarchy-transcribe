@@ -4,8 +4,8 @@
 # Everything that needs sudo or deserves a progress bar happens here:
 # whisper-cpp, the GPU backend, the default model, the menu row. It records
 # which packages it installed so `omarchy plugin remove` can take exactly
-# those back out, then writes the setup-done marker. No prompts: the defaults
-# are the choice. Safe to re-run.
+# those back out, then writes the setup-done marker. The only prompt is the
+# Files restart at the end, defaulting to yes. Safe to re-run.
 
 set -euo pipefail
 shopt -s inherit_errexit
@@ -89,13 +89,29 @@ touch "$STATE_DIR/setup-done"
 
 # ------------------------------------------------------------------ nautilus
 
-# Nautilus loads python extensions at startup only. Quitting it would close
-# every open Files window, so that is left to the user.
+# Nautilus loads python extensions at startup only, and closing its windows
+# does not quit it: it stays up as a background service, so Ctrl-Q changes
+# nothing. Only `nautilus -q` does. That closes every open Files window, so
+# ask, defaulting to yes; without a terminal to ask on, just say so.
 if pgrep -x nautilus >/dev/null; then
   echo ""
-  echo "Files (Nautilus) is running. The right-click Transcribe entry appears"
-  echo "once it is restarted: run 'nautilus -q' (closes open Files windows)"
-  echo "or wait for your next login."
+  echo "Files (Nautilus) is running and keeps running in the background after"
+  echo "its windows are closed. The right-click Transcribe entry appears only"
+  echo "after it is restarted, which closes open Files windows."
+  answer=""
+  if [[ -t 0 ]]; then
+    read -r -p "Restart Files now? [Y/n] " answer
+  fi
+  case "${answer,,}" in
+  n | no) echo "Not restarted. Run 'nautilus -q' when convenient." ;;
+  *)
+    if [[ -t 0 ]]; then
+      nautilus -q && echo "Files restarted."
+    else
+      echo "Run 'nautilus -q' when convenient."
+    fi
+    ;;
+  esac
 fi
 
 echo ""

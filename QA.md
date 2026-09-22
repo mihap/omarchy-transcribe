@@ -1,4 +1,4 @@
-# QA checklist — omarchy-transcribe 0.5.0
+# QA checklist — omarchy-transcribe 0.5.1
 
 Manual end-to-end test on an Omarchy machine. Tick each box; note the
 actual result next to anything that deviates. Run everything as your normal
@@ -35,12 +35,12 @@ omarchy plugin add "$PWD" --enable --yes         # a URL works the same way
 ```
 
 - [ ] Cloned into `~/.config/omarchy/plugins/mihap.transcribe/`; `omarchy plugin list` shows it `enabled third-party service`.
-- [ ] Within a second, exactly **one** floating terminal opens: installs whisper-cpp (sudo prompt), "No whisper models found" is not printed (setup downloads first), curl progress bar → "Saved to ~/.local/share/omarchy-transcribe/models/ggml-small.bin (466M)", "Vulkan detected, installing ggml-vulkan" (if Vulkan is present) → installed, "Added Transcribe to the Omarchy menu", notification "Transcribe Ready", Done. No prompts other than sudo.
+- [ ] Within a second, exactly **one** floating terminal opens: installs whisper-cpp (sudo prompt), "No whisper models found" is not printed (setup downloads first), curl progress bar → "Saved to ~/.local/share/omarchy-transcribe/models/ggml-small.bin (466M)", "Vulkan detected, installing ggml-vulkan" (if Vulkan is present) → installed, "Added Transcribe to the Omarchy menu", notification "Transcribe Ready", then, if Files is running, "Restart Files now? [Y/n]", Done. No prompts other than sudo and that one.
 - [ ] `ls -la ~/.local/bin/omarchy-transcribe` → a link into the plugin dir. No `omarchy-transcribe-install`, `-remove`, or `-menu` links.
 - [ ] `~/.local/share/nautilus-python/extensions/omarchy-transcribe.py` → a link into the plugin dir.
 - [ ] `~/.local/state/omarchy-transcribe/` has `plugin.log`, `setup-done`, `plugin-disable`, and `installed-packages` listing `whisper-cpp` (and `ggml-vulkan` if it was installed). No `setup.pending`.
 - [ ] `~/.config/omarchy/extensions/omarchy-menu.jsonc` gained two lines just before the final `}`: a marker comment and the `trigger.transcribe` row.
-- [ ] If Files was open: the setup terminal said Nautilus is running and how to restart it. No Files window was closed.
+- [ ] If Files was open: the setup terminal explained that Files keeps running after its windows close and asked "Restart Files now? [Y/n]". Enter → Files windows close, "Files restarted."; `n` → "Not restarted. Run 'nautilus -q' when convenient." and no window closed. With Files not running: no prompt.
 - [ ] `omarchy-transcribe --help` prints usage, exit 0.
 - [ ] `omarchy-transcribe --print-config` shows `MODEL_DIRS=/home/<you>/.local/share/whisper`, `DEFAULT_MODEL=small`, `LANGUAGE=auto`, `THREADS=<nproc>`.
 - [ ] `omarchy-transcribe --list-models` → `small<TAB>/home/<you>/.local/share/omarchy-transcribe/models/ggml-small.bin`.
