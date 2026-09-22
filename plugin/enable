@@ -18,6 +18,31 @@
 
 set -euo pipefail
 
+# Runs automatically, so nothing it executes may come from a user-writable
+# place: fixed PATH of root-owned dirs (Service.qml already cleared the
+# environment; this holds when the hook is run by hand too). ~/.local/bin is
+# written below, never searched.
+export PATH=/usr/share/omarchy/bin:/usr/local/bin:/usr/bin:/bin
+OMARCHY_BIN=/usr/share/omarchy/bin
+
+# Floating terminal for the parts that need sudo or a progress bar. Not via
+# omarchy-launch-floating-terminal-with-presentation: that hands the argument
+# list to the uwsm app daemon, which starts the terminal under its own,
+# unhardened environment (PATH with ~/.local/bin, whatever LD_PRELOAD or
+# BASH_ENV the session has), and names a bare `bash` on the way. Same scope
+# placement and presentation, started here so the terminal inherits exactly
+# the environment this hook runs with; PATH is pinned again as the first
+# statement inside, and the script pins it once more itself. The terminal
+# is a direct child now (the daemon used to sit in between), so close the
+# lock fd on the way out or the flock below is held until setup ends.
+open_terminal() {
+  local inner
+  inner="export PATH=$PATH; $OMARCHY_BIN/omarchy-show-logo; /usr/bin/bash $(printf '%q' "$1") ${2:-}; if (( \$? != 130 )); then $OMARCHY_BIN/omarchy-show-done; fi"
+  /usr/bin/setsid -f /usr/bin/systemd-run --user --scope --quiet --collect --slice=app-graphical.slice -- \
+    /usr/bin/xdg-terminal-exec --app-id=org.omarchy.terminal --title=Omarchy \
+    -e /usr/bin/bash -c "$inner" >/dev/null 2>&1 9>&-
+}
+
 PLUGIN_DIR="${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
 BIN_DIR="$HOME/.local/bin"
 EXT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nautilus-python/extensions"
@@ -50,9 +75,7 @@ for f in omarchy-transcribe-install omarchy-transcribe-remove omarchy-transcribe
   [[ -L $link && $(readlink -- "$link") == "$PLUGIN_DIR/"* ]] && rm -f "$link"
 done
 
-PATH="$BIN_DIR:$PATH"
-
-if [[ ! -f $SETUP_MARKER ]] || ! omarchy-cmd-present whisper-cli; then
+if [[ ! -f $SETUP_MARKER ]] || ! command -v whisper-cli >/dev/null; then
   # First time (or whisper-cpp got removed): package installs need sudo and
   # the model download deserves a progress bar, so do it where the user can
   # see it. plugin/setup writes the marker when it is done.
@@ -70,8 +93,7 @@ if [[ ! -f $SETUP_MARKER ]] || ! omarchy-cmd-present whisper-cli; then
     exit 0
   fi
   echo "first-time setup in a floating terminal"
-  # The terminal inherits our fds; keep its own chatter out of this log.
-  omarchy-launch-floating-terminal-with-presentation "bash $(printf '%q' "$PLUGIN_DIR/plugin/setup")" >/dev/null 2>&1
+  open_terminal "$PLUGIN_DIR/plugin/setup"
   exit 0
 fi
 

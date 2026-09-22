@@ -27,6 +27,27 @@
 
 set -euo pipefail
 
+# Runs automatically (and the purge in a terminal it opens itself), so
+# nothing here may resolve through a user-writable place: fixed PATH of
+# root-owned dirs, Omarchy helpers by absolute path. Service.qml already
+# cleared the environment; this holds when the copy is run by hand too.
+# Notifications are best-effort, everything else fails at its own call.
+export PATH=/usr/share/omarchy/bin:/usr/local/bin:/usr/bin:/bin
+OMARCHY_BIN=/usr/share/omarchy/bin
+PKG_DROP="$OMARCHY_BIN/omarchy-pkg-drop"
+NOTIFY="$OMARCHY_BIN/omarchy-notification-send"
+
+# Floating terminal for the purge. Same launch as plugin/enable, and for the
+# same reason: omarchy-launch-floating-terminal-with-presentation goes
+# through the uwsm app daemon, whose environment is the session's, not ours.
+open_terminal() {
+  local inner
+  inner="export PATH=$PATH; $OMARCHY_BIN/omarchy-show-logo; /usr/bin/bash $(printf '%q' "$1") ${2:-}; if (( \$? != 130 )); then $OMARCHY_BIN/omarchy-show-done; fi"
+  /usr/bin/setsid -f /usr/bin/systemd-run --user --scope --quiet --collect --slice=app-graphical.slice -- \
+    /usr/bin/xdg-terminal-exec --app-id=org.omarchy.terminal --title=Omarchy \
+    -e /usr/bin/bash -c "$inner" >/dev/null 2>&1
+}
+
 PLUGIN_ID="mihap.transcribe"
 BIN_DIR="$HOME/.local/bin"
 EXT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nautilus-python/extensions"
@@ -56,7 +77,7 @@ purge() {
 
   if (( ${#pkgs[@]} > 0 )); then
     echo "Cleaning up unused dependencies..."
-    if ! omarchy-pkg-drop "${pkgs[@]}"; then
+    if ! "$PKG_DROP" "${pkgs[@]}"; then
       left+=("${pkgs[*]} still installed (cancelled or failed; run: sudo pacman -Rns ${pkgs[*]})")
     fi
     echo ""
@@ -79,10 +100,10 @@ purge() {
   echo ""
   if (( ${#left[@]} > 0 )); then
     echo "Cleanup finished with leftovers: ${left[*]}"
-    omarchy-notification-send -u critical -g "$ICON" "Transcribe removed, cleanup incomplete" "${left[*]}" || true
+    "$NOTIFY" -u critical -g "$ICON" "Transcribe removed, cleanup incomplete" "${left[*]}" || true
   else
     echo "Cleanup finished."
-    omarchy-notification-send -g "$ICON" "Transcribe removed" "Models, settings and added packages cleaned up." -t 8000 || true
+    "$NOTIFY" -g "$ICON" "Transcribe removed" "Models, settings and added packages cleaned up." -t 8000 || true
   fi
 }
 
@@ -143,11 +164,11 @@ sleep 1
 if [[ -d $PLUGIN_DIR ]]; then
   # A disable: reversible, so the expensive parts stay. The hook copy stays
   # too, as the manual purge path for a plugin removed while disabled.
-  omarchy-notification-send -g "$ICON" "Transcribe disabled" "Enable it again from Setup > Plugins. Models kept; remove the plugin to delete everything." -t 8000 || true
+  "$NOTIFY" -g "$ICON" "Transcribe disabled" "Enable it again from Setup > Plugins. Models kept; remove the plugin to delete everything." -t 8000 || true
   echo "disabled (checkout still present); models and packages kept"
   exit 0
 fi
 
 # A remove: purge in a terminal the user can see, since it needs sudo.
 echo "removed (checkout gone); purging in a floating terminal"
-omarchy-launch-floating-terminal-with-presentation "bash $(printf '%q' "$STATE_DIR/plugin-disable") --purge" >/dev/null 2>&1
+open_terminal "$STATE_DIR/plugin-disable" --purge

@@ -1,4 +1,4 @@
-# QA checklist — omarchy-transcribe 0.5.2
+# QA checklist — omarchy-transcribe 0.5.3
 
 Manual end-to-end test on an Omarchy machine. Tick each box; note the
 actual result next to anything that deviates. Run everything as your normal
@@ -47,6 +47,8 @@ omarchy plugin add "$PWD" --enable --yes         # a URL works the same way
 - [ ] `omarchy restart shell` → `plugin.log` gains one "disable … still enabled in shell.json after 4s" and one "enable … enabled quietly" block. Nothing removed, no terminal popped up, still exactly one row in the menu file.
 - [ ] `omarchy plugin update mihap.transcribe --yes` (or `omarchy-shell shell rescanPlugins`) → `plugin.log` gains one "enable" block with **no** "disable" line before it (keepLoaded keeps the service across rescans; the Service coalesces the shell's repeated manifest injections); `plugin-disable` under the state dir has a fresh mtime; the checkout has the new commit.
 - [ ] `nautilus -q` (accepts closing Files windows).
+- [ ] Hook environment: `printf '#!/bin/bash\ntouch /tmp/shadow-ran\nexec /usr/bin/bash "$@"\n' > ~/.local/bin/bash; chmod +x ~/.local/bin/bash; omarchy restart shell` → `/tmp/shadow-ran` does not appear and `plugin.log` gains the usual restart blocks. The hooks are started by absolute path with a cleared environment and a fixed PATH.
+- [ ] Terminal environment, with the shadow still in place: `rm ~/.local/state/omarchy-transcribe/setup-done; omarchy restart shell` → the setup terminal opens, runs to "Transcribe Ready", and `/tmp/shadow-ran` still does not appear. `echo $PATH` in any other terminal still shows `~/.local/bin`, so the shadow would have run under the session environment; the hook opens the terminal itself instead of going through the uwsm app daemon. Then `rm ~/.local/bin/bash`.
 
 Interrupted setup, optional:
 

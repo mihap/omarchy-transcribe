@@ -114,6 +114,7 @@ MIT, see `LICENSE`.
 ```
 manifest.json                     plugin manifest (id mihap.transcribe)
 plugin/Service.qml                runs plugin/enable on load, plugin/disable on unload
+                                  (/usr/bin/bash, cleared environment, fixed PATH)
 plugin/enable                     links, menu row, first-time setup
 plugin/setup                      whisper-cpp, model, GPU (floating terminal)
 plugin/disable                    unlink; on remove, purge

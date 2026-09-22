@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "mihap.transcribe",
   "name": "Transcribe",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "author": "Mike Pevzner",
   "license": "MIT",
   "description": "Transcribe videos and audio to SRT with whisper.cpp: right-click in Files, Omarchy menu row, and omarchy-transcribe on the command line. Enabling installs whisper-cpp and downloads the small model.",

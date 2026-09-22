@@ -10,6 +10,16 @@
 set -euo pipefail
 shopt -s inherit_errexit
 
+# Opened by plugin/enable with a cleared environment; pin the same PATH here
+# so the terminal cannot widen it, and take the Omarchy helpers (one of
+# which runs sudo pacman) by absolute path. A missing helper fails its own
+# call under set -e; the notification is best-effort.
+export PATH=/usr/share/omarchy/bin:/usr/local/bin:/usr/bin:/bin
+OMARCHY_BIN=/usr/share/omarchy/bin
+PKG_ADD="$OMARCHY_BIN/omarchy-pkg-add"
+HW_VULKAN="$OMARCHY_BIN/omarchy-hw-vulkan"
+NOTIFY="$OMARCHY_BIN/omarchy-notification-send"
+
 PLUGIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-transcribe"
 TRANSCRIBE="$PLUGIN_DIR/bin/omarchy-transcribe"
@@ -43,18 +53,25 @@ echo ""
 
 # ------------------------------------------------------------------ whisper
 
-if pacman -Q whisper-cpp &>/dev/null; then
+if /usr/bin/pacman -Q whisper-cpp &>/dev/null; then
   echo "whisper-cpp already installed"
 else
-  omarchy-pkg-add whisper-cpp
+  "$PKG_ADD" whisper-cpp
   record_installed whisper-cpp
 fi
 
 # ------------------------------------------------------------------ model
 
 # The effective config (shipped defaults + user overrides) comes from the
-# command itself, so there is one loader.
-eval "$("$TRANSCRIBE" --print-config)"
+# command itself, so there is one loader. Only the model name is needed here,
+# and it is read as a value, not evaluated: the user's config is sourced by
+# the command in its own process, never by this one, which goes on to sudo.
+# --download rejects anything outside the committed model table anyway.
+DEFAULT_MODEL=$("$TRANSCRIBE" --print-config | sed -n 's/^DEFAULT_MODEL=//p' | head -n 1)
+if [[ ! $DEFAULT_MODEL =~ ^[A-Za-z0-9._-]+$ ]]; then
+  echo "DEFAULT_MODEL in the config is not a model name: '$DEFAULT_MODEL'" >&2
+  exit 1
+fi
 
 if [[ -n $("$TRANSCRIBE" --list-models) ]]; then
   echo "Whisper models already available:"
@@ -68,12 +85,12 @@ fi
 # whisper-cli goes through libggml, which loads backends from /usr/lib/ggml at
 # runtime, so the Vulkan backend is a separate package. Install it wherever a
 # Vulkan driver is present; CPU transcription keeps working if this fails.
-if omarchy-hw-vulkan; then
-  if pacman -Q ggml-vulkan &>/dev/null; then
+if "$HW_VULKAN"; then
+  if /usr/bin/pacman -Q ggml-vulkan &>/dev/null; then
     echo "GPU acceleration: ggml-vulkan already installed"
   else
     echo "Vulkan detected, installing ggml-vulkan for GPU-accelerated transcription..."
-    if omarchy-pkg-add ggml-vulkan; then
+    if "$PKG_ADD" ggml-vulkan; then
       record_installed ggml-vulkan
     else
       echo "ggml-vulkan install failed; CPU transcription still works." >&2
@@ -101,4 +118,4 @@ fi
 echo ""
 echo "Disable (keeps models) or remove (deletes everything it installed) from"
 echo "Omarchy menu > Setup > Plugins."
-omarchy-notification-send -g "$ICON" "Transcribe Ready" "Right-click a video in Files, or open the Omarchy menu." -t 10000 || true
+"$NOTIFY" -g "$ICON" "Transcribe Ready" "Right-click a video in Files, or open the Omarchy menu." -t 10000 || true
