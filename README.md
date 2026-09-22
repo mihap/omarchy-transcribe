@@ -4,6 +4,11 @@ SRT subtitles for any video or audio file, written next to it, generated locally
 
 Available as **Transcribe** in the Files right-click menu, in the Omarchy menu, and as `omarchy-transcribe` on the command line.
 
+<p>
+  <img src="screenshots/context.png" alt="Transcribe in the Files right-click menu" height="420">
+  <img src="screenshots/menu.png" alt="Model picker" height="420">
+</p>
+
 ## Install
 
 ```bash
@@ -111,4 +116,6 @@ bin/omarchy-transcribe            the command
 bin/omarchy-transcribe-menu       add/remove the menu row
 nautilus/omarchy-transcribe.py    Files right-click entry
 default/config                    shipped defaults
+preview.png                       marketplace preview
+screenshots/                      README images
 ```
